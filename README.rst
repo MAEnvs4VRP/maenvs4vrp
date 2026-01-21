@@ -12,12 +12,13 @@ MAEnvs4VRP is a library made up of multi-agent environments for simulating class
     :alt: Google Colab Badge
     :target: https://colab.research.google.com/github/ricgama/maenvs4vrp/blob/master/maenvs4vrp/notebooks/1.0.0-quickstart-cvrptw.ipynb
 
-What's NEW!
+What's NEW in v0.2!
 =====================
 
 - Added six new environments: **DVRPTW**, **DSVRPTW**, **MTVRP**, **MTDVRP**, **GMTVRP**, and **GMTDVRP**  
 - Introduced three new hands-on Jupyter notebook tutorials  
 - Integrated plotting tools for visualization and analysis 
+- Now every environment includes a ``check_solution_validity()`` method
 
 Environments
 ============
@@ -147,11 +148,13 @@ Two baseline models are available, which can be trained with:
 Unit Testing
 =================
 
-You can run unit tests and assure compatibility across environments, with customizable parameters, using:
+To run unit tests and verify compatibility across different environments with customizable parameters, use:
 
 .. code-block:: python
 
     pytest --device cpu --batch 1 --num_agents 2 --num_nodes 11
+
+For additional details and examples, please refer to the documentation.
 
 Directory Tree Structure
 ===========================
@@ -199,13 +202,6 @@ To credit the library in your publications, use this citation:
       url={https://arxiv.org/abs/2411.14411},
     }
 
-Contributors
-==================
-
-.. image:: https://contrib.rocks/image?repo=ricgama/maenvs4vrp
-   :alt: Contributors
-   :target: https://github.com/ricgama/maenvs4vrp/graphs/contributors
-
 Contributing
 ============
 We welcome contributions to **MAEnvs4VRP**!  
@@ -218,13 +214,3 @@ Acknowledgements
 =================
 MAEnvs4VRP has been inspired by, and benefits from, the ideas and tooling of the broader open-source community. In particular, we would like to thank `PettingZoo <https://www.pettingzoo.ml/>`_, 
 `Flatland <https://github.com/flatland-association/flatland-rl/>`_, `MARDAM <https://gitlab.inria.fr/gbono/mardam>`_, `RL4CO <https://rl4co.readthedocs.io/en/latest//>`_, `RoutFinder <https://github.com/ai4co/routefinder/tree/main//>`_, `PyVRP <https://pyvrp.org//>`_ .
-
-
-TODO List
-=================
-
-1. confirm tensor dimensions and standardize (e.g. change depot_idx from (batch, 1) to (batch) , dones, etc.)
-2. include cur_node_idx in old envs
-3. include check_solution_validity method
-4. include new envs in docs
-5. review key names (try to standardize names with those used in RL4CO).

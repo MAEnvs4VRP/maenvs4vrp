@@ -13,6 +13,8 @@ from maenvs4vrp.core.env_generator_builder import InstanceBuilder
 from huggingface_hub import hf_hub_download
 import shutil
 
+import logging
+
 BENCHMARK_INSTANCES_PATH = 'gmtvrp/data/benchmark'
 
 VARIANT_PRESETS = [
@@ -21,6 +23,8 @@ VARIANT_PRESETS = [
     'ovrptw', 'vrpb', 'vrpbl', 'vrpbltw', 'vrpbtw', 'vrpl',
     'vrpltw', 'vrpmb', 'vrpmbl', 'vrpmbltw', 'vrpmbtw', 'vrptw'
     ]
+
+log = logging.getLogger(__name__)
 
 class BenchmarkInstanceGenerator(InstanceBuilder):
     """
@@ -56,6 +60,19 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
             inst_dic[pset] = data_files
         return inst_dic
     
+    def check_instance_folders(base_dir, env):
+        base_benchmark_dir = os.path.join(base_dir, env, "data/benchmark")
+
+        for variant in VARIANT_PRESETS:
+            for instance_type in ["validation", "test"]:
+                for instance_name in ["100.npz", "50.npz"]:
+                    file_path = os.path.join(base_benchmark_dir, variant, instance_type, instance_name)
+
+                    if not os.path.isfile(file_path):
+                        log.warning(
+                            f"Missing instance: {file_path}. If you wish to re-download the original benchmark files, delete your {env}/data/benchmark folder and instantiate the BenchmarkInstanceGenerator class again."
+                        )
+    
     @classmethod
     def download_and_copy_instances(cls):
         """
@@ -73,8 +90,14 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
         direct = "data/benchmark"
         directory_to_be_created = os.path.join(base_dir, env, direct)
 
+        if os.path.isdir(directory_to_be_created):
+            cls.check_instance_folders(base_dir, env)
+
         if not (os.path.isdir(directory_to_be_created)):            
             os.makedirs(directory_to_be_created)
+
+            log.warning(f"Downloading benchmark files from HuggingFace to {directory_to_be_created}...")
+
             for variant in VARIANT_PRESETS:
                 for instance_type in ['val', 'test']:
                     for instance_name in ['100.npz', '50.npz']:
