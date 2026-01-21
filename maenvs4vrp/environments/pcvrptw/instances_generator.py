@@ -185,7 +185,8 @@ class InstanceGenerator(InstanceBuilder):
                                  service_times:int=0.2,
                                  profits:str='distance', 
                                  batch_size: Optional[torch.Size] = None,
-                                 seed:int=None)-> TensorDict:
+                                 seed:int=None,
+                                 device:Optional[str]="cpu")-> TensorDict:
         """
         Generate random instance.
 
@@ -274,7 +275,8 @@ class InstanceGenerator(InstanceBuilder):
                                  profits:str='distance',
                                  batch_size: Optional[torch.Size] = None,
                                  n_augment:int = 2,
-                                 seed:int=None)-> TensorDict:
+                                 seed:int=None,
+                                 device:Optional[str]="cpu")-> TensorDict:
         """
         Generate augmentated instance.
 
@@ -318,7 +320,8 @@ class InstanceGenerator(InstanceBuilder):
                                                      capacity=capacity, 
                                                      service_times=service_times,
                                                      batch_size = self.s_batch_size,
-                                                     seed=seed)
+                                                     seed=seed,
+                                                     device=device)
         
         self.batch_size = torch.Size(batch_size)
 
@@ -364,7 +367,8 @@ class InstanceGenerator(InstanceBuilder):
                         sample_type:str='random',
                         batch_size: Optional[torch.Size] = None,
                         n_augment: Optional[int] = None,
-                        seed:int=None)-> Dict:
+                        seed:int=None,
+                        device: Optional[str] = "cpu")-> Dict:
         """
         Sample one instance from instance space.
 
@@ -418,7 +422,8 @@ class InstanceGenerator(InstanceBuilder):
                                                      service_times=service_times,
                                                      profits=profits, 
                                                      batch_size = batch_size,
-                                                     seed=seed)
+                                                     seed=seed,
+                                                     device=device)
         elif sample_type=='augment':
             instance_info = self.augment_generate_instance(num_agents=num_agents, 
                                                      num_nodes=num_nodes, 
@@ -427,7 +432,8 @@ class InstanceGenerator(InstanceBuilder):
                                                      profits=profits, 
                                                      batch_size = batch_size,
                                                      n_augment = n_augment,
-                                                     seed=seed)           
+                                                     seed=seed,
+                                                     device=device)           
         elif sample_type=='saved':
             instance_info = self.get_instance(instance_name, num_agents=num_agents)
 

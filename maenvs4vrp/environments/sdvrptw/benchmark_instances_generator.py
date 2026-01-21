@@ -198,7 +198,8 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
     def sample_first_n_services(self, 
                                instance_name:str=None,
                                 num_agents:int=None, 
-                                num_nodes:int=None)-> Dict:
+                                num_nodes:int=None,
+                                device:Optional[str]="cpu")-> Dict:
         """
         Sample first n nodes. 
 
@@ -250,7 +251,8 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
                                instance_name:str=None,
                                num_agents:int=None, 
                                num_nodes:int=None, 
-                               seed:int=None)-> Dict:
+                               seed:int=None,
+                               device:Optional[str]="cpu")-> Dict:
         """
         Sample one instance from instance space, randomly adjusting the nodes.
 
@@ -326,7 +328,8 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
                         sample_type:str='random',
                         batch_size: Optional[torch.Size] = None,
                         n_augment: Optional[int] = None,
-                        seed:int=None)-> Dict:
+                        seed:int=None,
+                        device:Optional[str]="cpu")-> Dict:
         """
         Sample one instance from instance space.
 
@@ -356,12 +359,14 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
             instance = self.random_sample_instance(instance_name=instance_name,
                                                    num_agents=num_agents, 
                                                    num_nodes=num_nodes, 
-                                                   seed=seed)
+                                                   seed=seed,
+                                                   device=device)
         else:
             # sample first n
             instance = self.sample_first_n_services(instance_name=instance_name,
                                                     num_agents=num_agents, 
-                                                    num_nodes=num_nodes)
+                                                    num_nodes=num_nodes,
+                                                    device=device)
 
         return instance
 

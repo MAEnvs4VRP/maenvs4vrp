@@ -205,7 +205,8 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
                                instance_name:str=None,
                                num_agents:int=None, 
                                num_nodes:int=None, 
-                               seed:int=None)-> Dict:
+                               seed:int=None,
+                               device:Optional[str]="cpu")-> Dict:
         """
         Sample one instance from instance space, randomly adjusting the nodes.
 
@@ -301,7 +302,8 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
                         sample_type:str='random',
                         batch_size: Optional[torch.Size] = None,
                         n_augment: Optional[int] = None,
-                        seed:int=None)-> Dict:
+                        seed:int=None,
+                        device:Optional[str]="cpu")-> Dict:
         """
         Sample one instance from instance space.
 
@@ -335,7 +337,8 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
             instance = self.random_sample_instance(instance_name=instance_name,
                                                    num_agents=num_agents, 
                                                    num_nodes=num_nodes, 
-                                                   seed=seed)
+                                                   seed=seed,
+                                                   device=device)
         else:
             instance = self.get_instance(instance_name, num_agents=num_agents)
 

@@ -1,5 +1,6 @@
 import pytest
 import importlib
+import torch
 
 ENVIRONMENT_LIST = ['mtvrp', 'gmtvrp', 'mtdvrp', 'gmtdvrp']
 
@@ -10,6 +11,25 @@ VARIANT_PRESETS = [
     'vrpltw', 'vrpmb', 'vrpmbl', 'vrpmbltw', 'vrpmbtw', 'vrptw'
     ]
 
+DEFAULT_DEVICE = "cpu"
+DEFAULT_BATCH_SIZE = 1
+DEFAULT_NUM_AGENTS = [20, 30, 50]
+DEFAULT_NUM_NODES = [50, 100, 500, 1000]
+
+@pytest.fixture
+def define_values_fixture(device, batch, num_agents, num_nodes):
+    defined_device = torch.device(DEFAULT_DEVICE) if device == "cpu" else torch.device("cuda")
+    defined_batch = DEFAULT_BATCH_SIZE if batch == None else batch
+    defined_num_agents = DEFAULT_NUM_AGENTS if num_agents == None else num_agents
+    defined_num_nodes = DEFAULT_NUM_NODES if num_nodes == None else num_nodes
+
+    #Convert every list element from str to int
+
+    defined_batch = int(defined_batch)
+    defined_num_agents = list(map(int, defined_num_agents))
+    defined_num_nodes = list(map(int, defined_num_nodes))
+
+    return defined_device, defined_batch, defined_num_agents, defined_num_nodes
 
 @pytest.fixture(params=ENVIRONMENT_LIST)
 def environment_instances_fixture(request):
@@ -85,67 +105,82 @@ def environment_instances_fixture_rand(request):
     return environment
 
 
-def test_instance_env_agent_iterator_gives_no_error(environment_instances_fixture):
+def test_print_defined_values(define_values_fixture):
+    defined_device, defined_batch_size, defined_num_agents, defined_num_nodes = define_values_fixture
+    print(f"""
+Defined device: {defined_device}
+Defined batch size: {defined_batch_size}
+Defined num_agents: {defined_num_agents}
+Defined num_nodes: {defined_num_nodes}
+        """)
+
+def test_instance_env_agent_iterator_gives_no_error(environment_instances_fixture, define_values_fixture):
+    defined_device, defined_batch_size, defined_num_agents, defined_num_nodes = define_values_fixture
     env = environment_instances_fixture
-    for nnodes in [50, 100, 500, 1000]:
-        for nagents in [20, 30, 50]:
-            td = env.reset(num_agents=nagents, num_nodes=nnodes)
+    for nnodes in defined_num_nodes:
+        for nagents in defined_num_agents:
+            td = env.reset(num_agents=nagents, num_nodes=nnodes, device=defined_device, batch_size=defined_batch_size)
             while not td["done"].all():  
                 td = env.sample_action(td)
                 td = env.step(td)
             env.check_solution_validity()
 
 
-def test_instance_env_agent_smallesttime_iterator_gives_no_error(environment_instances_fixture_st):
+def test_instance_env_agent_smallesttime_iterator_gives_no_error(environment_instances_fixture_st, define_values_fixture):
+    defined_device, defined_batch_size, defined_num_agents, defined_num_nodes = define_values_fixture
     env = environment_instances_fixture_st
-    for nnodes in [50, 100, 500, 1000]:
-        for nagents in [20, 30, 50]:
-            td = env.reset(num_agents=nagents, num_nodes=nnodes)
+    for nnodes in defined_num_nodes:
+        for nagents in defined_num_agents:
+            td = env.reset(num_agents=nagents, num_nodes=nnodes, device=defined_device, batch_size=defined_batch_size)
             while not td["done"].all():  
                 td = env.sample_action(td)
                 td = env.step(td)
             env.check_solution_validity()
 
-def test_instance_env_agent_rand_iterator_gives_no_error(environment_instances_fixture_rand):
+def test_instance_env_agent_rand_iterator_gives_no_error(environment_instances_fixture_rand, define_values_fixture):
+    defined_device, defined_batch_size, defined_num_agents, defined_num_nodes = define_values_fixture
     env = environment_instances_fixture_rand
-    for nnodes in [50, 100, 500, 1000]:
-        for nagents in [20, 30, 50]:
-            td = env.reset(num_agents=nagents, num_nodes=nnodes)
+    for nnodes in defined_num_nodes:
+        for nagents in defined_num_nodes:
+            td = env.reset(num_agents=nagents, num_nodes=nnodes, device=defined_device, batch_size=defined_batch_size)
             while not td["done"].all():  
                 td = env.sample_action(td)
                 td = env.step(td)
             env.check_solution_validity()
 
 
-def test_instance_env_preset_agent_iterator_gives_no_error(environment_instances_fixture):
+def test_instance_env_preset_agent_iterator_gives_no_error(environment_instances_fixture, define_values_fixture):
+    defined_device, defined_batch_size, defined_num_agents, defined_num_nodes = define_values_fixture
     for variant in VARIANT_PRESETS:
         env = environment_instances_fixture
-        for nnodes in [50, 100, 500, 1000]:
-            for nagents in [20, 30, 50]:
-                td = env.reset(num_agents=nagents, num_nodes=nnodes, variant_preset=variant, batch_size=8)
+        for nnodes in defined_num_nodes:
+            for nagents in defined_num_agents:
+                td = env.reset(num_agents=nagents, num_nodes=nnodes, variant_preset=variant, device=defined_device, batch_size=defined_batch_size)
                 while not td["done"].all():  
                     td = env.sample_action(td)
                     td = env.step(td)
                 env.check_solution_validity()
 
 
-def test_instance_env_preset_agent_smallesttime_iterator_gives_no_error(environment_instances_fixture_st):
+def test_instance_env_preset_agent_smallesttime_iterator_gives_no_error(environment_instances_fixture_st, define_values_fixture):
+    defined_device, defined_batch_size, defined_num_agents, defined_num_nodes = define_values_fixture
     for variant in VARIANT_PRESETS:
         env = environment_instances_fixture_st
-        for nnodes in [50, 100, 500, 1000]:
-            for nagents in [20, 30, 50]:
-                td = env.reset(num_agents=nagents, num_nodes=nnodes, variant_preset=variant, batch_size=8)
+        for nnodes in defined_num_nodes:
+            for nagents in defined_num_agents:
+                td = env.reset(num_agents=nagents, num_nodes=nnodes, variant_preset=variant, device=defined_device, batch_size=defined_batch_size)
                 while not td["done"].all():  
                     td = env.sample_action(td)
                     td = env.step(td)
                 env.check_solution_validity()
 
-def test_instance_env_preset_agent_rand_iterator_gives_no_error(environment_instances_fixture_rand):
+def test_instance_env_preset_agent_rand_iterator_gives_no_error(environment_instances_fixture_rand, define_values_fixture):
+    defined_device, defined_batch_size, defined_num_agents, defined_num_nodes = define_values_fixture
     for variant in VARIANT_PRESETS:
         env = environment_instances_fixture_rand
-        for nnodes in [50, 100, 500, 1000]:
-            for nagents in [20, 30, 50]:
-                td = env.reset(num_agents=nagents, num_nodes=nnodes, variant_preset=variant, batch_size=8)
+        for nnodes in defined_num_nodes:
+            for nagents in defined_num_agents:
+                td = env.reset(num_agents=nagents, num_nodes=nnodes, variant_preset=variant, device=defined_device, batch_size=defined_batch_size)
                 while not td["done"].all():  
                     td = env.sample_action(td)
                     td = env.step(td)

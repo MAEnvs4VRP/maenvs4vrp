@@ -116,7 +116,8 @@ class Environment(AECEnv):
               sample_type:str='random',
               batch_size: Optional[torch.Size] = None,
               n_augment: Optional[int] = None,
-              seed:int|None=None)-> TensorDict:
+              seed:int|None=None,
+              device: Optional[str] = "cpu")-> TensorDict:
         """
         Reset the environment.
 
@@ -153,7 +154,8 @@ class Environment(AECEnv):
                                                             sample_type=sample_type, 
                                                             batch_size=batch_size,
                                                             n_augment=n_augment,
-                                                            seed=seed)
+                                                            seed=seed,
+                                                            device=device)
 
         self.num_nodes = instance_info['num_nodes']
         self.num_agents = instance_info['num_agents']
