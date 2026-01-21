@@ -1,5 +1,5 @@
 =====================
-Testing Environments
+Unit Testing
 =====================
 
 The library includes several tests to verify that it is running correctly.  
@@ -19,11 +19,18 @@ This script runs tests for **Multi-Tasking environments**, validating solution c
 * **Different agent selectors:** Tests all agent selectors — ``AgentSelector``, ``RandomSelector``, and ``SmallestTimeAgentSelector``.
 * **Different configurations:** Evaluates combinations of various numbers of agents and nodes.
 
+Configuration values can be customized using the following command-line parameters:
+
+* ``--device`` can be ``CPU`` or ``GPU``.
+* ``--batch`` can be any integer.
+* ``--num_agents`` can be a single or multiple integer values. To define n values, use the parameter n times.
+* ``--num_nodes`` can be a signle or multiple integer values. To define n values, use the parameter n times.
+
 To execute the test, run:
 
 .. code-block:: bash
 
-    pytest check_solution_mt_test.py
+    pytest --device cpu --batch 1 --num_agents 2 --num_nodes 11 --num_nodes 13 check_solution_mt_test.py
 
 
 Check Solution Test
@@ -35,11 +42,18 @@ This script performs solution validation for **non–Multi-Tasking environments*
 * **Different agent selectors:** Includes ``AgentSelector``, ``RandomSelector``, and ``SmallestTimeAgentSelector``.
 * **Different configurations:** Runs across multiple agent and node configurations.
 
+Configuration values can be customized using the following command-line parameters:
+
+* ``--device`` can be ``CPU`` or ``GPU``.
+* ``--batch`` can be any integer.
+* ``--num_agents`` can be a single or multiple integer values. To define n values, use the parameter n times.
+* ``--num_nodes`` can be a signle or multiple integer values. To define n values, use the parameter n times.
+
 To execute the test, run:
 
 .. code-block:: bash
 
-    pytest check_solution_test.py
+    pytest --device cpu --batch 1 --num_agents 2 --num_nodes 11 --num_nodes 13 check_solution_test.py
 
 
 Reset Test

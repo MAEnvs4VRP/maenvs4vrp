@@ -10,16 +10,14 @@ MAEnvs4VRP is a library made up of multi-agent environments for simulating class
 
 .. image:: https://colab.research.google.com/assets/colab-badge.svg
     :alt: Google Colab Badge
-    :target: https://colab.research.google.com/github/ricgama/maenvs4vrp/blob/master/maenvs4vrp/notebooks/1.0.0_quickstart_cvrptw.ipynb
+    :target: https://colab.research.google.com/github/ricgama/maenvs4vrp/blob/master/maenvs4vrp/notebooks/1.0.0-quickstart-cvrptw.ipynb
 
-What's NEW in v0.2!
+What's NEW!
 =====================
 
 - Added six new environments: **DVRPTW**, **DSVRPTW**, **MTVRP**, **MTDVRP**, **GMTVRP**, and **GMTDVRP**  
 - Introduced three new hands-on Jupyter notebook tutorials  
 - Integrated plotting tools for visualization and analysis 
-- Now every environment includes a `check_solution_validity()` method.
-
 
 Environments
 ============
@@ -82,7 +80,7 @@ To create an isolated environment with conda:
     conda create --name maenvs4vrp python=3.13.5
     conda activate maenvs4vrp
 
-To install MAEnvs4VRP locally on your machine:
+To install MAENVS4VRP locally on your machine:
 
 .. code:: shell
 
@@ -119,7 +117,7 @@ We've prepared five hands-on notebooks that walk you through the library's diffe
 
 .. |colab-quickstart| image:: https://colab.research.google.com/assets/colab-badge.svg
    :alt: Google Colab Badge
-   :target: https://colab.research.google.com/github/ricgama/maenvs4vrp/blob/master/maenvs4vrp/notebooks/1.0.0_quickstart_cvrptw.ipynb
+   :target: https://colab.research.google.com/github/ricgama/maenvs4vrp/blob/master/maenvs4vrp/notebooks/1.0.0-quickstart-cvrptw.ipynb
 .. |colab-challenges| image:: https://colab.research.google.com/assets/colab-badge.svg
    :alt: Google Colab Badge
    :target: https://colab.research.google.com/github/ricgama/maenvs4vrp/blob/master/maenvs4vrp/notebooks/2.0.0_maenvs4vrp_exploration_and_challenges.ipynb
@@ -145,6 +143,15 @@ Two baseline models are available, which can be trained with:
 .. code-block:: python
 
     python maenvs4vrp/learning/madyam/train_madyam.py --vrp_env toptw --num_agents 5 --num_nodes 51  --val_set servs_50_agents_5 --selection stime
+
+Unit Testing
+=================
+
+You can run unit tests and assure compatibility across environments, with customizable parameters, using:
+
+.. code-block:: python
+
+    pytest --device cpu --batch 1 --num_agents 2 --num_nodes 11
 
 Directory Tree Structure
 ===========================
@@ -192,6 +199,13 @@ To credit the library in your publications, use this citation:
       url={https://arxiv.org/abs/2411.14411},
     }
 
+Contributors
+==================
+
+.. image:: https://contrib.rocks/image?repo=ricgama/maenvs4vrp
+   :alt: Contributors
+   :target: https://github.com/ricgama/maenvs4vrp/graphs/contributors
+
 Contributing
 ============
 We welcome contributions to **MAEnvs4VRP**!  
@@ -203,4 +217,14 @@ You can **open an issue** here on GitHub or **drop us an email** — we’d love
 Acknowledgements
 =================
 MAEnvs4VRP has been inspired by, and benefits from, the ideas and tooling of the broader open-source community. In particular, we would like to thank `PettingZoo <https://www.pettingzoo.ml/>`_, 
-`Flatland <https://github.com/flatland-association/flatland-rl/>`_, `MARDAM <https://gitlab.inria.fr/gbono/mardam>`_, `RL4CO <https://rl4co.readthedocs.io/en/latest//>`_, `RoutFinder <https://github.com/ai4co/routefinder/tree/main//>`_, `PyVRP <https://pyvrp.org//>`_ , `tensordict <https://github.com/pytorch/tensordict//>`_.
+`Flatland <https://github.com/flatland-association/flatland-rl/>`_, `MARDAM <https://gitlab.inria.fr/gbono/mardam>`_, `RL4CO <https://rl4co.readthedocs.io/en/latest//>`_, `RoutFinder <https://github.com/ai4co/routefinder/tree/main//>`_, `PyVRP <https://pyvrp.org//>`_ .
+
+
+TODO List
+=================
+
+1. confirm tensor dimensions and standardize (e.g. change depot_idx from (batch, 1) to (batch) , dones, etc.)
+2. include cur_node_idx in old envs
+3. include check_solution_validity method
+4. include new envs in docs
+5. review key names (try to standardize names with those used in RL4CO).
