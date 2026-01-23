@@ -148,13 +148,26 @@ Two baseline models are available, which can be trained with:
 Unit Testing
 =================
 
-To run unit tests and verify compatibility across different environments with customizable parameters, use:
+Unit tests are located in the `/tests/unit/environments` directory.
 
-.. code-block:: python
+You can run individual tests as follows:
+
+.. code-block:: bash
+
+    pytest seed_test.py
+
+.. code-block:: bash
+
+    pytest reset_seed.py
+
+To run the full unit test suite and verify compatibility across different environments with customizable parameters, use:
+
+.. code-block:: bash
 
     pytest --device cpu --batch 1 --num_agents 2 --num_nodes 11
 
 For additional details and examples, please refer to the documentation.
+
 
 Directory Tree Structure
 ===========================
