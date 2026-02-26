@@ -118,7 +118,7 @@ We've prepared five hands-on notebooks that walk you through the library's diffe
 
 .. |colab-quickstart| image:: https://colab.research.google.com/assets/colab-badge.svg
    :alt: Google Colab Badge
-   :target: https://colab.research.google.com/github/ricgama/maenvs4vrp/blob/master/maenvs4vrp/notebooks/1.0.0-quickstart-cvrptw.ipynb
+   :target: https://colab.research.google.com/github/ricgama/maenvs4vrp/blob/master/maenvs4vrp/notebooks/1.0.0_quickstart_cvrptw.ipynb
 .. |colab-challenges| image:: https://colab.research.google.com/assets/colab-badge.svg
    :alt: Google Colab Badge
    :target: https://colab.research.google.com/github/ricgama/maenvs4vrp/blob/master/maenvs4vrp/notebooks/2.0.0_maenvs4vrp_exploration_and_challenges.ipynb
