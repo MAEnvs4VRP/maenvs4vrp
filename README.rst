@@ -208,8 +208,8 @@ To credit the library in your publications, use this citation:
 
     @article{gama2024maenvs4vrp,
       title={Multi-Agent Environments for Vehicle Routing Problems},
-      author={Ricardo Gama and Daniel Fuertes and Carlos R. del-Blanco and Hugo L. Fernandes},
-      year={2024},
+      author={Ricardo Gama and Ricardo Cunha and Daniel Fuertes and Carlos R. del-Blanco and Hugo L. Fernandes},
+      year={2026},
       journal={arXiv preprint arXiv:2411.14411},
       note={\url{https://github.com/ricgama/maenvs4vrp}}
       url={https://arxiv.org/abs/2411.14411},
