@@ -92,9 +92,9 @@ class Environment(AECEnv):
         if obs_list is not None and 'agents_action_mask' in obs_list:
             self._update_all_agents_feasibility()
             td_observations['agents_action_mask'] = self.td_state['agents']['action_mask'].clone()
-        if 'agent_cur_node_idx' in obs_list:
+        if obs_list is not None and 'agent_cur_node_idx' in obs_list:
             td_observations['agent_cur_node_idx'] = self.td_state['cur_agent']['cur_node_idx'].clone()
-        if 'agents_cur_node_idx' in obs_list:
+        if obs_list is not None and 'agents_cur_node_idx' in obs_list:
             td_observations['agents_cur_nodes_idx'] = self.td_state['agents']['cur_node_idx'].clone()
 
         td['observations'] = td_observations

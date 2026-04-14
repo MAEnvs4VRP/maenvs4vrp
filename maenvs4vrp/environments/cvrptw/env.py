@@ -93,9 +93,9 @@ class Environment(AECEnv):
         if obs_list is not None and 'agents_action_mask' in obs_list:
             self._update_all_agents_feasibility()
             td_observations['agents_action_mask'] = self.td_state['agents']['action_mask'].clone()
-        if 'agent_cur_node_idx' in obs_list:
+        if obs_list is not None and 'agent_cur_node_idx' in obs_list:
             td_observations['agent_cur_node_idx'] = self.td_state['cur_agent']['cur_node_idx'].clone()
-        if 'agents_cur_node_idx' in obs_list:
+        if obs_list is not None and 'agents_cur_node_idx' in obs_list:
             td_observations['agents_cur_nodes_idx'] = self.td_state['agents']['cur_node_idx'].clone()
 
         td['observations'] = td_observations
@@ -530,7 +530,75 @@ class Environment(AECEnv):
         Returns:
             None.
         """
-        raise NotImplementedError()
+        # Get dimensions
+        batch_size = self.td_state.batch_size
+        
+        # Base mask from active nodes: [B, N] -> [B, 1, N] -> [B, num_agents, N]
+        _mask = self.td_state['nodes']['active_nodes_mask'].clone()
+        _mask = _mask.unsqueeze(1).expand(*batch_size, self.num_agents, self.num_nodes)
+        
+        # Get current locations for all agents: [B, num_agents, 2]
+        cur_node_idx = self.td_state['agents']['cur_node_idx']  # [B, num_agents]
+        loc = self.td_state['coords'].gather(1, cur_node_idx[:, :, None].expand(-1, -1, 2))  # [B, num_agents, 2]
+        
+        # Current time for all agents: [B, num_agents]
+        ptime = self.td_state['agents']['cur_time'].clone()
+        
+        # Calculate distances and times to all nodes
+        # coords: [B, N, 2], loc: [B, num_agents, 2]
+        # distance2j: [B, num_agents, N]
+        coords_expanded = self.td_state['coords'].unsqueeze(1).expand(*batch_size, self.num_agents, -1, -1)
+        loc_expanded = loc.unsqueeze(2).expand(-1, -1, self.num_nodes, -1)
+        distance2j = get_distance(loc_expanded, coords_expanded)
+        time2j = distance2j / self.td_state['speed'].unsqueeze(1)
+        
+        if self.n_digits is not None:
+            distance2j = torch.floor(self.n_digits * distance2j) / self.n_digits
+            time2j = torch.floor(self.n_digits * time2j) / self.n_digits
+        
+        # Time window constraints
+        # ptime: [B, num_agents] -> [B, num_agents, 1]
+        arrivej = ptime.unsqueeze(-1) + time2j  # [B, num_agents, N]
+        waitj = torch.clip(self.td_state['tw_low'].unsqueeze(1) - arrivej, min=0)  # [B, num_agents, N]
+        service_startj = arrivej + waitj  # [B, num_agents, N]
+        
+        c1 = service_startj <= self.td_state['tw_high'].unsqueeze(1)  # [B, num_agents, N]
+        c2 = service_startj + self.td_state['service_time'].unsqueeze(1) + self.td_state['time2depot'].unsqueeze(1) <= self.td_state['end_time'].unsqueeze(-1).unsqueeze(-1)  # [B, num_agents, N]
+        
+        # Capacity constraints
+        c3 = self.td_state['demands'].unsqueeze(1) <= self.td_state['agents']['cur_load'].unsqueeze(-1)  # [B, num_agents, N]
+        
+        _mask = _mask * c1 * c2 * c3
+        
+        # Zero out inactive agents (all their actions become unavailable)
+        # Expand active_agents to cover all actions per agent
+        active_expanded = self.td_state['agents']['active_agents_mask'].unsqueeze(-1).expand(-1, -1, self.num_nodes)
+        _mask = _mask & active_expanded
+        # After done, close all services but keep depot open for first agent
+        done = self.td_state['done']  # [B, 1]
+        _mask = _mask & ~done.unsqueeze(-1).unsqueeze(-1)  # [B, num_agents, N]
+        # Open depot for agent 0 only in batch rows where `done` is True
+        done_rows = done.squeeze(-1).nonzero(as_tuple=True)[0]  # indices of rows where all agents inactive
+        if done_rows.numel() > 0:
+            # ensure depot_idx is 1D [B]
+            depot_idx = self.td_state['depot_idx'].squeeze(-1) if self.td_state['depot_idx'].dim() > 1 else self.td_state['depot_idx']
+            # open depot only for agent 0 in those rows
+            _mask[done_rows, 0, depot_idx[done_rows]] = True
+
+        if self.force_visit:
+            cur_node = self.td_state['agents']['cur_node_idx']  # [B, num_agents]
+            depot_idx = self.td_state['depot_idx']  # [B, 1]
+            at_depot = (cur_node == depot_idx)  # [B, num_agents]
+            # Any unvisited service nodes (non-depot) across the batch
+            has_unvisited = self.td_state['nodes']['active_nodes_mask'][:, 1:].any(dim=-1)  # [B]
+            # Agents at depot with unvisited nodes must leave — close depot for them
+            must_leave = at_depot & has_unvisited.unsqueeze(-1)  # [B, num_agents]
+            # Close depot for agents that must leave
+            depot_idx_expanded = depot_idx.unsqueeze(1).expand(*batch_size, self.num_agents, 1)  # [B, num_agents, 1]
+            depot_open = _mask.gather(2, depot_idx_expanded) & ~must_leave.unsqueeze(-1)  # [B, num_agents, 1]
+            _mask.scatter_(2, depot_idx_expanded, depot_open)
+        
+        self.td_state['agents']['action_mask'] = _mask
     
     def _update_done(self, action):
 
