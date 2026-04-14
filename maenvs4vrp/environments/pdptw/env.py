@@ -819,7 +819,7 @@ class Environment(AECEnv):
             curr_loc = gather_by_index(self.td_state['coords'], curr_node)
             next_loc = gather_by_index(self.td_state['coords'], next_node)
             dist = get_distance(curr_loc, next_loc)
-            time = dist / self.td_state['speed']
+            time = dist / self.td_state['speed'].squeeze(-1)
 
             arrivej = curr_time + time
             tw_low = gather_by_index(self.td_state['tw_low'], next_node)

@@ -800,7 +800,7 @@ class Environment(AECEnv):
             next_loc = gather_by_index(self.td_state['coords'], next_node)
 
             distance2j = get_distance(curr_loc, next_loc)
-            time2j = distance2j / self.td_state['speed']
+            time2j = distance2j / self.td_state['speed'].squeeze(-1)
 
             if self.n_digits is not None:
                 distance2j = torch.floor(self.n_digits * distance2j) / self.n_digits
