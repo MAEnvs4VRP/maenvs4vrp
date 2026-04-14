@@ -144,7 +144,7 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
                                                                           dtype=torch.int64, device=self.device)).squeeze(-1)
         data['end_time'] = time_windows[:, :, 1].gather(1, torch.zeros((*self.batch_size, 1), 
                                                                         dtype=torch.int64, device=self.device)).squeeze(-1)
-
+        data['speed'] = torch.ones((*self.batch_size, 1), dtype=torch.float, device=self.device)
 
         data['is_depot'] = torch.zeros((*self.batch_size, instance['num_nodes']), dtype=torch.bool, device=self.device)
         data['is_depot'][:, depot_idx] = True
@@ -205,6 +205,7 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
                                instance_name:str=None,
                                num_agents:int=None, 
                                num_nodes:int=None, 
+                               speed:float=None,
                                seed:int=None,
                                device:Optional[str]="cpu")-> Dict:
         """
@@ -214,6 +215,7 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
             instance_name(str): Instance file name. Defaults to None.
             num_agents(int):  Total number of agents. Defaults to None.
             num_nodes(int):  Total number of nodes. Defaults to None.
+            speed(float): Vehicles' speed. Defaults to None.
             seed(int): Random number generator seed. Defaults to None.
 
         Returns:
@@ -274,6 +276,7 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
 
         new_data['is_pickup'] = data['is_pickup'][:, index]
         new_data['is_delivery']  = data['is_delivery'][:, index]
+        new_data['speed'] = data['speed']
 
         new_instance['data'] = new_data
         return new_instance
@@ -298,6 +301,7 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
                         num_nodes:int=None, 
                         capacity:int=None, 
                         service_times:float=None, 
+                        speed:float=None, 
                         instance_name:str=None, 
                         sample_type:str='random',
                         batch_size: Optional[torch.Size] = None,
@@ -312,6 +316,7 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
             num_nodes(int): Total number of nodes. Defaults to None.
             capacity(int): Capacity of the agents. Defaults to None.
             service_times(float): Service time in the nodes. Defaults to None.
+            speed(float): Vehicles' speed. Defaults to None.
             instance_name(str): Instance name. Defaults to None.
             sample_type(str): Sample type. It can be "random" or something else for "first n". Defaults to "random".
             batch_size(torch.Size or None): Batch size. Defaults to None.
@@ -323,6 +328,10 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
         """
         if seed is not None:
             self._set_seed(seed)
+        if speed is None:
+            self.speed = 1.0
+        else:
+            self.speed = speed
 
         if instance_name==None:
             instance_name = self.sample_name_from_set(seed=seed)
@@ -337,6 +346,7 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
             instance = self.random_sample_instance(instance_name=instance_name,
                                                    num_agents=num_agents, 
                                                    num_nodes=num_nodes, 
+                                                   speed=self.speed,
                                                    seed=seed,
                                                    device=device)
         else:

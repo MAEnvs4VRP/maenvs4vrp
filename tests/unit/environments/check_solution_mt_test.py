@@ -119,10 +119,10 @@ def test_instance_env_agent_iterator_gives_no_error(environment_instances_fixtur
     env = environment_instances_fixture
     for nnodes in defined_num_nodes:
         for nagents in defined_num_agents:
-            td = env.reset(num_agents=nagents, num_nodes=nnodes, device=defined_device, batch_size=defined_batch_size)
+            td = env.reset_agent_select_observe(num_agents=nagents, num_nodes=nnodes, device=defined_device, batch_size=defined_batch_size)
             while not td["done"].all():  
                 td = env.sample_action(td)
-                td = env.step(td)
+                td = env.step_agent_select_observe(td)
             env.check_solution_validity()
 
 
@@ -131,10 +131,10 @@ def test_instance_env_agent_smallesttime_iterator_gives_no_error(environment_ins
     env = environment_instances_fixture_st
     for nnodes in defined_num_nodes:
         for nagents in defined_num_agents:
-            td = env.reset(num_agents=nagents, num_nodes=nnodes, device=defined_device, batch_size=defined_batch_size)
+            td = env.reset_agent_select_observe(num_agents=nagents, num_nodes=nnodes, device=defined_device, batch_size=defined_batch_size)
             while not td["done"].all():  
                 td = env.sample_action(td)
-                td = env.step(td)
+                td = env.step_agent_select_observe(td)
             env.check_solution_validity()
 
 def test_instance_env_agent_rand_iterator_gives_no_error(environment_instances_fixture_rand, define_values_fixture):
@@ -142,10 +142,10 @@ def test_instance_env_agent_rand_iterator_gives_no_error(environment_instances_f
     env = environment_instances_fixture_rand
     for nnodes in defined_num_nodes:
         for nagents in defined_num_nodes:
-            td = env.reset(num_agents=nagents, num_nodes=nnodes, device=defined_device, batch_size=defined_batch_size)
+            td = env.reset_agent_select_observe(num_agents=nagents, num_nodes=nnodes, device=defined_device, batch_size=defined_batch_size)
             while not td["done"].all():  
                 td = env.sample_action(td)
-                td = env.step(td)
+                td = env.step_agent_select_observe(td)
             env.check_solution_validity()
 
 
@@ -155,10 +155,10 @@ def test_instance_env_preset_agent_iterator_gives_no_error(environment_instances
         env = environment_instances_fixture
         for nnodes in defined_num_nodes:
             for nagents in defined_num_agents:
-                td = env.reset(num_agents=nagents, num_nodes=nnodes, variant_preset=variant, device=defined_device, batch_size=defined_batch_size)
+                td = env.reset_agent_select_observe(num_agents=nagents, num_nodes=nnodes, variant_preset=variant, device=defined_device, batch_size=defined_batch_size)
                 while not td["done"].all():  
                     td = env.sample_action(td)
-                    td = env.step(td)
+                    td = env.step_agent_select_observe(td)
                 env.check_solution_validity()
 
 
@@ -168,10 +168,10 @@ def test_instance_env_preset_agent_smallesttime_iterator_gives_no_error(environm
         env = environment_instances_fixture_st
         for nnodes in defined_num_nodes:
             for nagents in defined_num_agents:
-                td = env.reset(num_agents=nagents, num_nodes=nnodes, variant_preset=variant, device=defined_device, batch_size=defined_batch_size)
+                td = env.reset_agent_select_observe(num_agents=nagents, num_nodes=nnodes, variant_preset=variant, device=defined_device, batch_size=defined_batch_size)
                 while not td["done"].all():  
                     td = env.sample_action(td)
-                    td = env.step(td)
+                    td = env.step_agent_select_observe(td)
                 env.check_solution_validity()
 
 def test_instance_env_preset_agent_rand_iterator_gives_no_error(environment_instances_fixture_rand, define_values_fixture):
@@ -180,8 +180,10 @@ def test_instance_env_preset_agent_rand_iterator_gives_no_error(environment_inst
         env = environment_instances_fixture_rand
         for nnodes in defined_num_nodes:
             for nagents in defined_num_agents:
-                td = env.reset(num_agents=nagents, num_nodes=nnodes, variant_preset=variant, device=defined_device, batch_size=defined_batch_size)
+                td = env.reset_agent_select_observe(num_agents=nagents, num_nodes=nnodes, variant_preset=variant, device=defined_device, batch_size=defined_batch_size)
                 while not td["done"].all():  
                     td = env.sample_action(td)
-                    td = env.step(td)
+                    td = env.step_agent_select_observe(td)
                 env.check_solution_validity()
+
+# TODO expand tests for selecting types

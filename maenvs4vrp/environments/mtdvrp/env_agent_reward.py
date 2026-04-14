@@ -3,7 +3,7 @@ from tensordict import TensorDict
 from maenvs4vrp.core.env_agent_reward import RewardFn
 
 from typing import Optional, List
-
+from maenvs4vrp.utils.ops import get_distance
 
 class DenseReward(RewardFn):
     """
@@ -55,11 +55,14 @@ class DenseReward(RewardFn):
         # compute penalty if env has unvisited nodes 
         is_last_step = self.env.td_state['is_last_step']
         
-        depot2nodes = torch.cdist(self.env.td_state['depot_loc'], self.env.td_state['coords'])
+        dist_depot2nodes = torch.cdist(self.env.td_state['depot_loc'], self.env.td_state['coords'])
+        time_depot2nodes = dist_depot2nodes / self.env.td_state['speed'].unsqueeze(1)
+
         if self.env.n_digits is not None:
-            depot2nodes = torch.floor(self.env.n_digits * depot2nodes) / self.env.n_digits
-        
-        penalty[is_last_step] = self.pending_penalty * ((depot2nodes.sum(1).scatter_(1, self.env.td_state['depot_idx'], 0) * self.env.td_state['nodes']['active_nodes_mask']).sum(-1, keepdim = True).float()[is_last_step])
+            dist_depot2nodes = torch.floor(self.env.n_digits * dist_depot2nodes) / self.env.n_digits
+            time_depot2nodes = torch.floor(self.env.n_digits * time_depot2nodes) / self.env.n_digits
+
+        penalty[is_last_step] = self.pending_penalty * ((time_depot2nodes.sum(1).scatter_(1, self.env.td_state['depot_idx'], 0) * self.env.td_state['nodes']['active_nodes_mask']).sum(-1, keepdim = True).float()[is_last_step])
 
         return reward, penalty
 
@@ -115,12 +118,15 @@ class SparseReward(RewardFn):
         # compute penalty if env has unvisited nodes 
         is_last_step = self.env.td_state['is_last_step']
         
-        depot2nodes = torch.cdist(self.env.td_state['depot_loc'], self.env.td_state['coords'])
+        dist_depot2nodes = torch.cdist(self.env.td_state['depot_loc'], self.env.td_state['coords'])
+        time_depot2nodes = dist_depot2nodes / self.env.td_state['speed'].unsqueeze(1)
+
         if self.env.n_digits is not None:
-            depot2nodes = torch.floor(self.env.n_digits * depot2nodes) / self.env.n_digits
+            dist_depot2nodes = torch.floor(self.env.n_digits * dist_depot2nodes) / self.env.n_digits
+            time_depot2nodes = torch.floor(self.env.n_digits * time_depot2nodes) / self.env.n_digits
 
         final_reward = -self.env.td_state['agents']['cum_ttime'].sum(1, keepdim = True)
-        penalty[is_last_step] = self.pending_penalty * ((depot2nodes.sum(1).scatter_(1, self.env.td_state['depot_idx'], 0) * self.env.td_state['nodes']['active_nodes_mask']).sum(-1, keepdim = True).float()[is_last_step])
+        penalty[is_last_step] = self.pending_penalty * ((time_depot2nodes.sum(1).scatter_(1, self.env.td_state['depot_idx'], 0) * self.env.td_state['nodes']['active_nodes_mask']).sum(-1, keepdim = True).float()[is_last_step])
         
         reward[is_last_step] = final_reward[is_last_step]
         return reward, penalty

@@ -185,6 +185,7 @@ class InstanceGenerator(InstanceBuilder):
                                  num_depots:int=5,
                                  capacity:int=50, 
                                  service_times:int=0.2, 
+                                 speed:float=None,
                                  batch_size: Optional[torch.Size] = None,
                                  seed:int=None,
                                  device:Optional[str]="cpu")-> TensorDict:
@@ -196,6 +197,7 @@ class InstanceGenerator(InstanceBuilder):
             num_nodes(int):  Total number of nodes. Defaults to 100.
             capacity(int): Total capacity for each agent. Defaults to 50.
             service_times(int): Total time of service. Defaults to 0.2.
+            speed(float): Vehicles' speed. Defaults to None.
             batch_size(torch.Size, optional): Batch size. Defaults to None.
             seed(int, optional): Random number generator seed. Defaults to None.
 
@@ -219,6 +221,8 @@ class InstanceGenerator(InstanceBuilder):
         if capacity is not None:
             assert capacity>0, f"agent capacity must be grater them 0!"
             self.capacity = capacity
+        if speed is not None:
+            assert speed>0, f'Speed must be greater than 0!'
 
         if batch_size is not None:
             batch_size = [batch_size] if isinstance(batch_size, int) else batch_size
@@ -239,6 +243,7 @@ class InstanceGenerator(InstanceBuilder):
         service_times = self.service_times * torch.ones((*self.batch_size, num_nodes), dtype = torch.float, device=self.device)
         service_times.scatter_(1, self.depot_idx, 0)
         instance['service_time'] = service_times
+        instance['speed'] = torch.full((*self.batch_size, 1), self.speed, dtype=torch.float32)
 
         time_windows = self.get_time_windows(instance, self.batch_size, seed)
 
@@ -266,6 +271,7 @@ class InstanceGenerator(InstanceBuilder):
                                  num_depots:int=5,
                                  capacity:int=50, 
                                  service_times:int=0.2, 
+                                 speed:float=None,
                                  batch_size: Optional[torch.Size] = None,
                                  n_augment:int = 2,
                                  seed:int=None,
@@ -278,6 +284,7 @@ class InstanceGenerator(InstanceBuilder):
             num_nodes(int):  Total number of nodes. Defaults to 100.
             capacity(int): Total capacity for each agent. Defaults to 50.
             service_times(int): Service time in the nodes. Defaults to 0.2.
+            speed(float): Vehicles' speed. Defaults to None.
             batch_size(torch.Size, optional): Batch size. Defaults to None.
             n_augment(int): Data augmentation. Defaults to 2.
             seed(int, optional): Random number generator seed. Defaults to None.
@@ -302,6 +309,8 @@ class InstanceGenerator(InstanceBuilder):
         if capacity is not None:
             assert capacity>0, f"agent capacity must be grater them 0!"
             self.capacity = capacity
+        if speed is not None:
+            assert speed>0, f'Speed must be greater than 0!'
 
         if batch_size is not None:
             batch_size = [batch_size] if isinstance(batch_size, int) else batch_size
@@ -316,6 +325,7 @@ class InstanceGenerator(InstanceBuilder):
                                                      num_depots=num_depots,
                                                      capacity=capacity, 
                                                      service_times=service_times,
+                                                     speed=speed,
                                                      batch_size = self.s_batch_size,
                                                      seed=seed,
                                                      device=device)
@@ -360,6 +370,7 @@ class InstanceGenerator(InstanceBuilder):
                         num_depots=None,
                         capacity=50, 
                         service_times=0.2, 
+                        speed:float=1.0,
                         instance_name:str=None, 
                         sample_type:str='random',
                         batch_size: Optional[torch.Size] = None,
@@ -374,6 +385,7 @@ class InstanceGenerator(InstanceBuilder):
             num_nodes(int):  Total number of nodes. Defaults to None.
             capacity(int): Total capacity for each agent. Defaults to 50.
             service_times(int): Service time in the nodes. Defaults to 0.2.           
+            speed(float): Vehicles' speed. Defaults to 1.0.
             instance_name(str):  Instance name. Defaults to None.
             sample_type(str): Sample type. It can be "random", "augment" or "saved". Defaults to "random".
             batch_size(torch.Size, optional): Batch size. Defaults to None.
@@ -408,6 +420,11 @@ class InstanceGenerator(InstanceBuilder):
             capacity = 50
         if service_times is None:
             service_times = 0.2
+        if speed is None:
+            self.speed = 1.0
+        else:
+            self.speed = speed
+
 
         if batch_size is not None:
             batch_size = [batch_size] if isinstance(batch_size, int) else batch_size
@@ -419,6 +436,7 @@ class InstanceGenerator(InstanceBuilder):
                                                      num_depots=num_depots,
                                                      capacity=capacity, 
                                                      service_times=service_times,
+                                                     speed=self.speed,
                                                      batch_size = batch_size,
                                                      seed=seed,
                                                      device=device)
@@ -428,6 +446,7 @@ class InstanceGenerator(InstanceBuilder):
                                                      num_depots=num_depots,
                                                      capacity=capacity, 
                                                      service_times=service_times,
+                                                     speed=self.speed,
                                                      batch_size = batch_size,
                                                      n_augment = n_augment,
                                                      seed=seed,

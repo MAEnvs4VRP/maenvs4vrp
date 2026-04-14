@@ -2,8 +2,9 @@ import pytest
 import importlib
 from maenvs4vrp.utils.utils import data_equivalence
 
-ENVIRONMENT_LIST = ['dvrptw', 'dsvrptw', 'cvrptw', 'toptw', 'cvrpstw', 'sdvrptw', 'pcvrptw', 'pdptw', 'mdvrptw', 'mtvrp', 'gmtvrp', 'mtdvrp', 'gmtdvrp']
-
+ENVIRONMENT_LIST = ['dvrptw', 'dsvrptw', 'cvrptw', 'toptw', 'cvrpstw', 'sdvrptw', 
+                    'pcvrptw', 'pdptw', 'mdvrptw', 'mtvrp', 'gmtvrp', 'mtdvrp', 'gmtdvrp',
+                    'cvrp', 'hcvrp', 'top']
 
 
 @pytest.fixture(params=ENVIRONMENT_LIST)

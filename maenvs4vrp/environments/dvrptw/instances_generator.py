@@ -146,6 +146,7 @@ class InstanceGenerator(InstanceBuilder):
     def random_generate_instance(self, num_agents:int=25, 
                                  num_nodes:int=100, 
                                  capacity:int=200, 
+                                 speed:float=None,
                                  min_cust_count:Optional[int] = None,
                                  cust_loc_range:tuple = (0,101),
                                  cust_dem_range:tuple= (5,41),
@@ -167,6 +168,7 @@ class InstanceGenerator(InstanceBuilder):
             num_agents (int): Total number of agents. Defaults to 25.
             num_nodes (int): Total number of nodes. Defaults to 100.
             capacity (int): Total capacity for each agent. Defaults to 200.
+            speed(float): Vehicles' speed. Defaults to None.
             min_cust_count (Optional[int]): Minimum customer count. Defaults to None.
             cust_loc_range (tuple): Range for customer locations. Defaults to (0, 101).
             cust_dem_range (tuple): Range for customer demands. Defaults to (5, 41).
@@ -196,6 +198,8 @@ class InstanceGenerator(InstanceBuilder):
         if capacity is not None:
             assert capacity>0, f"agent capacity must be grater them 0!"
             self.capacity = capacity
+        if speed is not None:
+            assert speed>0, f'Speed must be greater than 0!'
 
         if batch_size is not None:
             batch_size = [batch_size] if isinstance(batch_size, int) else batch_size
@@ -221,6 +225,7 @@ class InstanceGenerator(InstanceBuilder):
         instance['coords'] = locs
         instance['demands'] = demands
         instance['service_time'] = service_times
+        instance['speed'] = torch.full((*self.batch_size, 1), self.speed, dtype=torch.float32)
 
         # Sample dyn subset           ~ B(dod)
         # and early/late appearance   ~ B(d_early_ratio)
@@ -296,6 +301,7 @@ class InstanceGenerator(InstanceBuilder):
     def augment_generate_instance(self, num_agents:int=25, 
                                  num_nodes:int=100, 
                                  capacity:int=200, 
+                                 speed:float=None,
                                  min_cust_count:Optional[int] = None,
                                  cust_loc_range:tuple = (0,101),
                                  cust_dem_range:tuple= (5,41),
@@ -317,6 +323,7 @@ class InstanceGenerator(InstanceBuilder):
             num_agents (int): Total number of agents. Defaults to 25.
             num_nodes (int): Total number of nodes. Defaults to 100.
             capacity (int): Total capacity for each agent. Defaults to 200.
+            speed(float): Vehicles' speed. Defaults to None.
             min_cust_count (Optional[int]): Minimum customer count. Defaults to None.
             cust_loc_range (tuple): Range for customer locations. Defaults to (0, 101).
             cust_dem_range (tuple): Range for customer demands. Defaults to (5, 41).
@@ -347,6 +354,8 @@ class InstanceGenerator(InstanceBuilder):
         if capacity is not None:
             assert capacity>0, f"agent capacity must be grater them 0!"
             self.capacity = capacity
+        if speed is not None:
+            assert speed>0, f'Speed must be greater than 0!'
 
         if batch_size is not None:
             batch_size = [batch_size] if isinstance(batch_size, int) else batch_size
@@ -359,6 +368,7 @@ class InstanceGenerator(InstanceBuilder):
         instance_info_s = self.random_generate_instance(num_agents=num_agents, 
                                                      num_nodes=num_nodes, 
                                                      capacity=capacity, 
+                                                     speed=speed,
                                                      min_cust_count = min_cust_count,
                                                      cust_loc_range = cust_loc_range,
                                                      cust_dem_range= cust_dem_range,
@@ -408,6 +418,7 @@ class InstanceGenerator(InstanceBuilder):
     def sample_instance(self, 
                         num_agents=None, 
                         num_nodes=None, 
+                        speed:float=1.0,
                         instance_name:str=None, 
                         sample_type:str='random',
                         batch_size: Optional[torch.Size] = None,
@@ -420,6 +431,7 @@ class InstanceGenerator(InstanceBuilder):
         Args:
             num_agents(int): Total number of agents. Defaults to None.
             num_nodes(int):  Total number of nodes. Defaults to None.        
+            speed(float): Vehicles' speed. Defaults to 1.0.
             instance_name(str):  Instance name. Defaults to None.
             sample_type(str): Sample type. It can be "random", "augment" or "saved". Defaults to "random".
             batch_size(torch.Size, optional): Batch size. Defaults to None.
@@ -448,6 +460,10 @@ class InstanceGenerator(InstanceBuilder):
             num_agents = 20
         if num_nodes is None:
             num_nodes = 100
+        if speed is None:
+            self.speed = 1.0
+        else:
+            self.speed = speed
 
 
         if batch_size is not None:
@@ -459,12 +475,14 @@ class InstanceGenerator(InstanceBuilder):
         if sample_type=='random':
             instance_info = self.random_generate_instance(num_agents=num_agents, 
                                                      num_nodes=num_nodes, 
+                                                     speed=self.speed,
                                                      batch_size = batch_size,
                                                      seed=seed,
                                                      device=device)
         elif sample_type=='augment':
             instance_info = self.augment_generate_instance(num_agents=num_agents, 
                                                      num_nodes=num_nodes, 
+                                                     speed=self.speed,
                                                      batch_size = batch_size,
                                                      n_augment = n_augment,
                                                      seed=seed,

@@ -4,7 +4,7 @@ from maenvs4vrp.core.env_agent_selector import BaseSelector
 from maenvs4vrp.core.env_agent_reward import RewardFn
 
 
-from typing import Any, Dict, Iterable, Iterator, TypeVar, Tuple, Optional
+from typing import Any, Dict, Iterable, Iterator, TypeVar, Tuple, Optional, List
 
 import torch
 from tensordict.tensordict import TensorDict
@@ -90,12 +90,13 @@ class AECEnv():
         self.rng = rng
 
 
-    def observe(self, is_reset=False)-> TensorDict:
+    def observe(self, obs_list=None, update_all=False)-> TensorDict:
         """
         Compute the environment.
 
         Args:
-            is_reset(bool): If the environment is on reset. Defauts to False.
+            obs_list(list, optional): List of observations to include. Defaults to None.
+            update_all(bool, optional): If True, update all agents' observations. Defaults to False.
 
         Returns
             TensorDict: Current agent observaions and masks dictionary.
@@ -115,6 +116,32 @@ class AECEnv():
         """
         raise NotImplementedError()
 
+    def sample_joint(self, td: TensorDict) -> TensorDict:
+        """
+        Sample both agent and action simultaneously from the joint feasible space.
+
+        Args:
+            td(TensorDict): Environment instance tensor.
+
+        Returns:
+            TensorDict: Tensor environment instance with updated agent and action.
+        """
+        raise NotImplementedError()
+
+    def sample_agent(self, td: TensorDict, agent_given_action=False)-> TensorDict:
+        """
+        Sample a random agent from the available agents in the environment.
+
+        Args:
+            td(TensorDict): Environment instance tensor.
+            agent_given_action(bool, optional): If True, sample an agent given the action. Defaults to False.
+
+        Returns:
+            TensorDict: Tensor environment instance with updated agent.
+        """
+        raise NotImplementedError()
+
+
     def reset(self) -> TensorDict:
         """
         Reset the environment to a starting state and return infos dict.
@@ -127,6 +154,44 @@ class AECEnv():
         """
         raise NotImplementedError()
 
+    def reset_agent_select(self) -> TensorDict:
+        """
+        Resets the environment and sets the current agent.
+
+        Returns:
+            TensorDict: Updated environment instance tensor.
+        """
+        raise NotImplementedError()
+
+    def reset_observe(self) -> TensorDict:
+        """
+        Resets and observe the environment.
+
+        Returns:
+            TensorDict: Updated environment instance tensor.
+        """
+        raise NotImplementedError()
+
+    def reset_agent_select_observe(self) -> TensorDict:
+        """
+        Resets the environment, sets the current agent and makes observations.
+
+        Returns:
+            TensorDict: Updated environment instance tensor.
+        """
+        raise NotImplementedError()
+ 
+    def _update_curr_agent_feasibility(self):
+        """
+        Update the feasibility of actions for the current agent.
+        """
+        raise NotImplementedError()
+
+    def _update_all_agents_feasibility(self):
+        """
+        Update the feasibility of actions for all agents.
+        """
+        raise NotImplementedError()
 
     def step(self, td: TensorDict) -> TensorDict:
         """
@@ -141,6 +206,60 @@ class AECEnv():
         """
         raise NotImplementedError()
     
+    def step_observe(self, td: TensorDict,                              
+                    obs_list: Optional[List[str]] = ['all_agents_action_mask']) -> TensorDict:
+
+        """
+        Perform an environment step for active agent.
+
+        Args:
+            td(TensorDict): Environment tensor instance.
+            obs_list (Optional[List[str]]): List of observation keys to include. Defaults to ['all_agents_action_mask'].
+
+        Returns:
+            td(TensorDict): Updated environment tensor instance.
+        """
+        raise NotImplementedError()
+
+
+    def step_agent_select(self, td: TensorDict) -> TensorDict:
+        """
+        Perform an environment step for active agent.
+
+        Args:
+            td(TensorDict): Environment tensor instance.
+
+        Returns:
+            td(TensorDict): Updated environment tensor instance.
+        """
+        raise NotImplementedError()
+
+
+    def step_agent_select_observe(self, td: TensorDict,
+                               obs_list: Optional[List[str]]) -> TensorDict:
+        """
+        Perform an environment step for active agent.
+
+        Args:
+            td(TensorDict): Environment tensor instance.
+
+        Returns:
+            td(TensorDict): Updated environment tensor instance.
+        """
+        raise NotImplementedError()
+
+    def check_solution_validity(self):
+        """
+        Check if solution is valid according to problem constraints.
+
+        Args:
+            N/a.
+
+        Returns:
+            None. Raises AssertionError if invalid.
+        """
+        raise NotImplementedError()
+
     def _get_current_instance_data(self) -> dict[str, dict[str, torch.Tensor] | str]:
         """
         Return a lightweight, plotting-friendly view of the current instance.

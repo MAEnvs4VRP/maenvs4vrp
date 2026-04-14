@@ -10,11 +10,11 @@ from tensordict import TensorDict
 from typing import Optional, Union, Callable, Dict, Tuple
 
 from maenvs4vrp.core.env_generator_builder import InstanceBuilder
+from maenvs4vrp.utils.ops import get_distance
 
 from torch.distributions import Uniform
 
 import os
-
 import pickle
 
 GENERATED_INSTANCES_PATH = 'gmtdvrp/data/generated'
@@ -247,6 +247,162 @@ class InstanceGenerator(InstanceBuilder):
 
         return instance
 
+    @staticmethod
+    def _default_open(td, remove):
+        td['open_routes'][remove] = False
+        return td
+
+    @staticmethod
+    def _default_time_windows(td, remove):
+        default_tw = torch.zeros_like(td['time_windows'])
+        default_tw[..., 1] = float('inf')
+        td['time_windows'][remove] = default_tw[remove]
+        td['service_time'][remove] = torch.zeros_like(td['service_time'][remove])
+        return td
+    
+    @staticmethod
+    def _default_distance_limit(td, remove):
+        td['distance_limits'][remove] = float('inf')
+        return td
+    
+    @staticmethod
+    def _default_backhaul(td, remove):
+        td['linehaul_demands'][remove] = (
+            td['linehaul_demands'][remove] + td['backhaul_demands'][remove]
+        )
+        td['backhaul_demands'][remove] = 0
+        return td
+    
+    def generate_demands(self, batch_size: int, num_nodes: int) -> torch.Tensor:
+        """
+        Generate demands.
+
+        Args:
+            batch_size(int): Batch size.
+            num_nodes(int): Number of nodes.
+
+        Returns:
+            torch.Tensor: Linehaul and backhaul demands.
+        """
+        linehaul_demand = torch.FloatTensor(*batch_size, num_nodes).uniform_(
+            self.min_demands - 1, self.max_demands - 1
+        )
+        linehaul_demand = (linehaul_demand.int() + 1).float()
+        # Backhaul demand sampling
+        backhaul_demand = torch.FloatTensor(*batch_size, num_nodes).uniform_(
+            self.min_backhaul - 1, self.max_backhaul - 1
+        )
+        backhaul_demand = (backhaul_demand.int() + 1).float()
+        is_linehaul = torch.rand(*batch_size, num_nodes) > self.backhaul_ratio
+        backhaul_demand = (
+            backhaul_demand * ~is_linehaul
+        )  # keep only values where they are not linehauls
+        linehaul_demand = linehaul_demand * is_linehaul
+        return linehaul_demand, backhaul_demand
+    
+    def generate_backhaul_class(self, shape: Tuple[int, int], sample: bool = False):
+        """
+        Generate backhaul class.
+
+        Args:
+            shape(Tuple): Tensor shape.
+            sample(bool): Sample backhaul class. Defaults to False.
+
+        Returns:
+            torch.Tensor: Linehaul and backhaul demands.
+        """
+        if sample:
+            return torch.randint(1, 3, shape, dtype=torch.float32)
+        else:
+            return torch.full(shape, self.backhaul_class, dtype=torch.float32)
+        
+    def generate_distance_limit(
+        self, shape: Tuple[int, int], coords: torch.Tensor
+    ) -> torch.Tensor:
+        """
+        Generate distance limits.
+
+        Args:
+            shape(Tuple): Tensor shape.
+            coords(torch.Tensor): Nodes coordinates.
+
+        Returns:
+            torch.Tensor: Distance limits.
+        """
+        max_dist = torch.max(torch.cdist(coords[:, 0:1], coords[:, 1:]).squeeze(-2), dim=1)[0]
+        dist_lower_bound = 2 * max_dist + 1e-6
+        max_distance_limit = torch.maximum(
+            torch.full_like(dist_lower_bound, self.max_distance_limit),
+            dist_lower_bound + 1e-6,
+        )
+
+        # We need to sample from the `distribution` module to get the same distribution with a tensor as input
+        return torch.distributions.Uniform(dist_lower_bound, max_distance_limit).sample()[
+            ..., None
+        ]
+    
+    def generate_time_windows(
+        self,
+        coords: torch.Tensor = None,
+        speed: torch.Tensor = None,
+    ) -> torch.Tensor:
+        
+        """
+        Generate time windows.
+
+        Args:
+            coords(torch.Tensor): Nodes coordinates.
+            speed(torch.Tensor): Agents speed.
+
+        Returns:
+            torch.Tensor: Time windows and service times.
+        """
+        
+        batch_size, n_loc = coords.shape[0], coords.shape[1] - self.num_depots  # no depot
+
+        a, b, c = 0.15, 0.18, 0.2
+        service_time = a + (b - a) * torch.rand(batch_size, n_loc)
+        tw_length = b + (c - b) * torch.rand(batch_size, n_loc)
+
+        # Expand dimensions to make them compatible for broadcasting
+        tensor_a = coords[:, 0 : self.num_depots]  # Shape: [B, num_depots, 2]
+        tensor_b = coords[:, self.num_depots :]  # Shape: [B, N, 2]
+
+        tensor_a_expanded = tensor_a[:, :, None, :]  # Shape: [B, num_depots, 1, 2]
+        tensor_b_expanded = tensor_b[:, None, :, :]  # Shape: [B, 1, N, 2]
+
+        d_0i = get_distance(
+            tensor_a_expanded, tensor_b_expanded
+        )  # Shape: [B, num_depots, N]
+
+        d_0i, _ = torch.max(d_0i, dim=1)  # Shape: [B, N]
+
+        # d_0i = get_distance(locs[:, 0 : 1], locs[:, self.num_depots :]) # old version with 1 depot
+
+        h_max = (self.max_time - service_time - tw_length) / d_0i * speed - 1
+        tw_start = (1 + (h_max - 1) * torch.rand(batch_size, n_loc)) * d_0i / speed
+        tw_end = tw_start + tw_length
+
+        # Depot tw is [0, max_time]
+        time_windows = torch.stack(
+            (
+                torch.cat(
+                    (torch.zeros(batch_size, self.num_depots), tw_start), dim=-1
+                ),  # start
+                torch.cat(
+                    (torch.full((batch_size, self.num_depots), self.max_time), tw_end),
+                    dim=-1,
+                ),
+            ),  # end
+            dim=-1,
+        )
+        # depot service time is 0
+        service_time = torch.cat(
+            (torch.zeros(batch_size, self.num_depots), service_time), dim=-1
+        )
+        return time_windows, service_time  # [B, num_depots + N, 2], [B, num_depots + N]
+    
+    
     def subsample_variant(
         self,
         prob_open_routes: float = 0.5,
@@ -928,177 +1084,6 @@ class InstanceGenerator(InstanceBuilder):
 
         return instance_info
         
-
-    @staticmethod
-    def _default_open(td, remove):
-        td['open_routes'][remove] = False
-        return td
-
-    @staticmethod
-    def _default_time_windows(td, remove):
-        default_tw = torch.zeros_like(td['time_windows'])
-        default_tw[..., 1] = float('inf')
-        td['time_windows'][remove] = default_tw[remove]
-        td['service_time'][remove] = torch.zeros_like(td['service_time'][remove])
-        return td
-    
-    @staticmethod
-    def _default_distance_limit(td, remove):
-        td['distance_limits'][remove] = float('inf')
-        return td
-    
-    @staticmethod
-    def _default_backhaul(td, remove):
-        td['linehaul_demands'][remove] = (
-            td['linehaul_demands'][remove] + td['backhaul_demands'][remove]
-        )
-        td['backhaul_demands'][remove] = 0
-        return td
-    
-    def generate_demands(self, batch_size: int, num_nodes: int) -> torch.Tensor:
-        """
-        Generate demands.
-
-        Args:
-            batch_size(int): Batch size.
-            num_nodes(int): Number of nodes.
-
-        Returns:
-            torch.Tensor: Linehaul and backhaul demands.
-        """
-        linehaul_demand = torch.FloatTensor(*batch_size, num_nodes).uniform_(
-            self.min_demands - 1, self.max_demands - 1
-        )
-        linehaul_demand = (linehaul_demand.int() + 1).float()
-        # Backhaul demand sampling
-        backhaul_demand = torch.FloatTensor(*batch_size, num_nodes).uniform_(
-            self.min_backhaul - 1, self.max_backhaul - 1
-        )
-        backhaul_demand = (backhaul_demand.int() + 1).float()
-        is_linehaul = torch.rand(*batch_size, num_nodes) > self.backhaul_ratio
-        backhaul_demand = (
-            backhaul_demand * ~is_linehaul
-        )  # keep only values where they are not linehauls
-        linehaul_demand = linehaul_demand * is_linehaul
-        return linehaul_demand, backhaul_demand
-    
-    def generate_backhaul_class(self, shape: Tuple[int, int], sample: bool = False):
-        """
-        Generate backhaul class.
-
-        Args:
-            shape(Tuple): Tensor shape.
-            sample(bool): Sample backhaul class. Defaults to False.
-
-        Returns:
-            torch.Tensor: Linehaul and backhaul demands.
-        """
-        if sample:
-            return torch.randint(1, 3, shape, dtype=torch.float32)
-        else:
-            return torch.full(shape, self.backhaul_class, dtype=torch.float32)
-        
-    def generate_distance_limit(
-        self, shape: Tuple[int, int], coords: torch.Tensor
-    ) -> torch.Tensor:
-        """
-        Generate distance limits.
-
-        Args:
-            shape(Tuple): Tensor shape.
-            coords(torch.Tensor): Nodes coordinates.
-
-        Returns:
-            torch.Tensor: Distance limits.
-        """
-        max_dist = torch.max(torch.cdist(coords[:, 0:1], coords[:, 1:]).squeeze(-2), dim=1)[0]
-        dist_lower_bound = 2 * max_dist + 1e-6
-        max_distance_limit = torch.maximum(
-            torch.full_like(dist_lower_bound, self.max_distance_limit),
-            dist_lower_bound + 1e-6,
-        )
-
-        # We need to sample from the `distribution` module to get the same distribution with a tensor as input
-        return torch.distributions.Uniform(dist_lower_bound, max_distance_limit).sample()[
-            ..., None
-        ]
-    
-    def get_distance(self, x: Tensor, y: Tensor):
-        
-        """
-        Euclidean distance between two tensors of shape `[..., n, dim].
-        Taken from: https://github.com/ai4co/rl4co/blob/main/rl4co/utils/ops.py
-
-        Args:
-            x(torch.Tensor): Point x.
-            y(torch.Tensor): Point y.
-
-        Returns:
-            torch.Tensor: Distance between x and y.
-        """
-        return (x - y).norm(p=2, dim=-1)
-    
-    def generate_time_windows(
-        self,
-        coords: torch.Tensor = None,
-        speed: torch.Tensor = None,
-    ) -> torch.Tensor:
-        
-        """
-        Generate time windows.
-
-        Args:
-            coords(torch.Tensor): Nodes coordinates.
-            speed(torch.Tensor): Agents speed.
-
-        Returns:
-            torch.Tensor: Time windows and service times.
-        """
-        
-        batch_size, n_loc = coords.shape[0], coords.shape[1] - self.num_depots  # no depot
-
-        a, b, c = 0.15, 0.18, 0.2
-        service_time = a + (b - a) * torch.rand(batch_size, n_loc)
-        tw_length = b + (c - b) * torch.rand(batch_size, n_loc)
-
-        # Expand dimensions to make them compatible for broadcasting
-        tensor_a = coords[:, 0 : self.num_depots]  # Shape: [B, num_depots, 2]
-        tensor_b = coords[:, self.num_depots :]  # Shape: [B, N, 2]
-
-        tensor_a_expanded = tensor_a[:, :, None, :]  # Shape: [B, num_depots, 1, 2]
-        tensor_b_expanded = tensor_b[:, None, :, :]  # Shape: [B, 1, N, 2]
-
-        d_0i = self.get_distance(
-            tensor_a_expanded, tensor_b_expanded
-        )  # Shape: [B, num_depots, N]
-
-        d_0i, _ = torch.max(d_0i, dim=1)  # Shape: [B, N]
-
-        # d_0i = get_distance(locs[:, 0 : 1], locs[:, self.num_depots :]) # old version with 1 depot
-
-        h_max = (self.max_time - service_time - tw_length) / d_0i * speed - 1
-        tw_start = (1 + (h_max - 1) * torch.rand(batch_size, n_loc)) * d_0i / speed
-        tw_end = tw_start + tw_length
-
-        # Depot tw is [0, max_time]
-        time_windows = torch.stack(
-            (
-                torch.cat(
-                    (torch.zeros(batch_size, self.num_depots), tw_start), dim=-1
-                ),  # start
-                torch.cat(
-                    (torch.full((batch_size, self.num_depots), self.max_time), tw_end),
-                    dim=-1,
-                ),
-            ),  # end
-            dim=-1,
-        )
-        # depot service time is 0
-        service_time = torch.cat(
-            (torch.zeros(batch_size, self.num_depots), service_time), dim=-1
-        )
-        return time_windows, service_time  # [B, num_depots + N, 2], [B, num_depots + N]
-
     
 if __name__ == "__main__":
 
