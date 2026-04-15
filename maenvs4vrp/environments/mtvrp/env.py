@@ -164,6 +164,7 @@ class Environment(AECEnv):
 
         else:
             agent = torch.multinomial(self.td_state['agents']['active_agents_mask'].float(), 1).to(self.device)
+
         td['next_agent'] = agent
         return td
     
@@ -724,8 +725,9 @@ class Environment(AECEnv):
         meet_demand_constraints = ((self.td_state['backhaul_class'] == 1) & meets_demand_constraint_backhaul_1) | ((self.td_state['backhaul_class'] == 2) & meets_demand_constraint_backhaul_2)
         _mask = active_nodes & c1 & c2 & c3 & meet_demand_constraints
 
-        # after done close all services and open depot
+        # after done close all services
         _mask = _mask * ~self.td_state['done'].unsqueeze(-1)
+        # depot is always open
         _mask.scatter_(1, self.td_state['depot_idx'], True)
 
         if self.force_visit:
@@ -740,20 +742,132 @@ class Environment(AECEnv):
     def _update_all_agents_feasibility(self):
         """
         Update actions feasibility for all agents simultaneously.
-        
-        Args:
-            n/a.
-
-        Returns:
-            None.
         """
-        raise NotImplementedError()
-    
-    def _update_done(
-        self,
-        action
-    ):
-        
+        batch_size = self.td_state.batch_size
+
+        # Base mask: active nodes [B, N] -> [B, 1, N] -> [B, A, N]
+        active_nodes = self.td_state['nodes']['active_nodes_mask'].unsqueeze(1).expand(*batch_size, self.num_agents, self.num_nodes)
+
+        # Current node coords per agent: [B, A, 2]
+        cur_node_idx = self.td_state['agents']['cur_node_idx']
+        cur_node_coords = self.td_state['coords'].gather(1, cur_node_idx[:, :, None].expand(-1, -1, 2))
+
+        # Current times per agent: [B, A]
+        cur_time = self.td_state['agents']['cur_time'].clone()
+
+        # Pairwise distances [B, A, N, 2] -> [B, A, N]
+        cur_coords_expanded = cur_node_coords.unsqueeze(2).expand(-1, -1, self.num_nodes, -1)
+        all_coords_expanded = self.td_state["coords"].unsqueeze(1).expand(*batch_size, self.num_agents, -1, -1)
+        distance2j = torch.sqrt(((cur_coords_expanded - all_coords_expanded) ** 2).sum(dim=-1))
+
+        # time2j: [B, A, N] / [B, 1, 1] -> [B, A, N]
+        time2j = distance2j / self.td_state['speed'].unsqueeze(1)
+        if self.n_digits is not None:
+            distance2j = torch.floor(self.n_digits * distance2j) / self.n_digits
+            time2j = torch.floor(self.n_digits * time2j) / self.n_digits
+
+        # arrival_time: [B, A, N]
+        arrival_time = cur_time.unsqueeze(-1) + time2j
+
+        # time2depot, distance2depot: [B, N] -> [B, A, N]
+        time2depot = self.td_state['nodes']['time2depot'].unsqueeze(1).expand(*batch_size, self.num_agents, self.num_nodes)
+        distance2depot = self.td_state['nodes']['distance2depot'].unsqueeze(1).expand(*batch_size, self.num_agents, self.num_nodes)
+
+        # Constraint 1: Can arrive to node before time window closes [B, A, N]
+        tw_high = self.td_state['tw_high'].unsqueeze(1).expand(*batch_size, self.num_agents, self.num_nodes)
+        c1 = arrival_time <= tw_high
+
+        # Constraint 2: If closed route, can agent return to depot in time [B, A, N]
+        tw_low = self.td_state['tw_low'].unsqueeze(1).expand(*batch_size, self.num_agents, self.num_nodes)
+        service_time = self.td_state['service_time'].unsqueeze(1).expand(*batch_size, self.num_agents, self.num_nodes)
+        open_routes = self.td_state['open_routes'].unsqueeze(1)        # [B, 1, 1]
+        end_time = self.td_state['end_time'].unsqueeze(1).unsqueeze(-1)  # [B, 1, 1]
+        c2 = (torch.max(arrival_time, tw_low) + service_time + time2depot) * ~open_routes <= end_time
+
+        # Constraint 3: Agent does not exceed distance limit [B, A, N]
+        cur_route_length = self.td_state['agents']['route_length'].unsqueeze(-1)  # [B, A, 1]
+        distance_limits = self.td_state['distance_limits'].unsqueeze(1)           # [B, 1, 1]
+        c3 = cur_route_length + distance2j + (distance2depot * ~open_routes) <= distance_limits
+
+        # Capacity constraints [B, A, N]
+        linehaul_demands = self.td_state['linehaul_demands'].unsqueeze(1).expand(*batch_size, self.num_agents, self.num_nodes)
+        backhaul_demands = self.td_state['backhaul_demands'].unsqueeze(1).expand(*batch_size, self.num_agents, self.num_nodes)
+        used_cap_l = self.td_state['agents']['used_capacity_linehaul'].unsqueeze(-1)  # [B, A, 1]
+        used_cap_b = self.td_state['agents']['used_capacity_backhaul'].unsqueeze(-1)  # [B, A, 1]
+        capacity = self.td_state['agents']['capacity'].unsqueeze(1)                   # [B, 1, 1]
+
+        exceeds_cap_linehaul = linehaul_demands + used_cap_l > capacity  # [B, A, N]
+        exceeds_cap_backhaul = backhaul_demands + used_cap_b > capacity  # [B, A, N]
+
+        # Backhaul class 1: linehauls before backhauls (unmixed)
+        # linehaul_missing: [B] -> [B, 1, 1] broadcasts to [B, A, N]
+        linehaul_missing = ((self.td_state['linehaul_demands'] * self.td_state['nodes']['active_nodes_mask']).sum(-1) > 0)
+        linehaul_missing = linehaul_missing.unsqueeze(1).unsqueeze(2)
+        # is_carrying_backhaul: [B, A, 1] broadcasts to [B, A, N]
+        cur_node_backhaul = gather_by_index(src=self.td_state['backhaul_demands'], idx=cur_node_idx, dim=1, squeeze=False)
+        if cur_node_backhaul.dim() == 2:
+            cur_node_backhaul = cur_node_backhaul.unsqueeze(-1)
+        is_carrying_backhaul = cur_node_backhaul > 0
+        meets_demand_constraint_backhaul_1 = (linehaul_missing & ~exceeds_cap_linehaul & ~is_carrying_backhaul & (linehaul_demands > 0)) | (~exceeds_cap_backhaul & (backhaul_demands > 0))
+
+        # Backhaul class 2: mixed linehauls and backhauls
+        cannot_serve_linehaul = linehaul_demands > (capacity - used_cap_b)
+        meets_demand_constraint_backhaul_2 = ~exceeds_cap_linehaul & ~exceeds_cap_backhaul & ~cannot_serve_linehaul
+
+        # Select demand constraints by backhaul class [B, 1, 1] broadcasts to [B, A, N]
+        backhaul_class = self.td_state['backhaul_class'].unsqueeze(1)
+        meet_demand_constraints = ((backhaul_class == 1) & meets_demand_constraint_backhaul_1) | ((backhaul_class == 2) & meets_demand_constraint_backhaul_2)
+
+        # Build final mask [B, A, N]
+        _mask = active_nodes & c1 & c2 & c3 & meet_demand_constraints
+
+        _mask = self._post_process_mask(_mask)
+
+        self.td_state['agents']['action_mask'] = _mask
+
+
+    def _post_process_mask(self, mask):
+        """
+        Post-process the action mask after all constraints have been applied.
+        """
+
+        batch_size = self.td_state.batch_size
+
+        #   Depot must always be open for active agents regardless of other constraints
+        depot_idx_exp = self.td_state['depot_idx'].unsqueeze(1).expand(*batch_size, self.num_agents, 1)  # [B, A, 1]
+        active_agents = self.td_state['agents']['active_agents_mask']                    # [B, A]
+        mask.scatter_(2, depot_idx_exp, active_agents.unsqueeze(-1))
+
+        # Zero out inactive agents
+        active_expanded = self.td_state['agents']['active_agents_mask'].unsqueeze(-1).expand(-1, -1, self.num_nodes)
+        mask = mask & active_expanded
+
+        # After done, close all services
+        done = self.td_state['done']  # [B] or [B, 1]
+        mask = mask & ~done.unsqueeze(-1).unsqueeze(-1)
+
+        # Open depot for agent 0 only in done batch rows
+        done_rows = done.squeeze(-1).nonzero(as_tuple=True)[0]
+        if done_rows.numel() > 0:
+            depot_idx = self.td_state['depot_idx'].squeeze(-1) if self.td_state['depot_idx'].dim() > 1 else self.td_state['depot_idx']
+            mask[done_rows, 0, depot_idx[done_rows]] = True
+
+        # force_visit: agents at depot with unvisited nodes must leave
+        if self.force_visit:
+            cur_node = self.td_state['agents']['cur_node_idx']          # [B, A]
+            depot_idx = self.td_state['depot_idx']                      # [B, 1]
+            at_depot = (cur_node == depot_idx)                          # [B, A]
+            has_unvisited = self.td_state['nodes']['active_nodes_mask'][:, 1:].any(dim=-1)  # [B]
+            must_leave = at_depot & has_unvisited.unsqueeze(-1)         # [B, A]
+            depot_idx_expanded = depot_idx.unsqueeze(1).expand(*batch_size, self.num_agents, 1)  # [B, A, 1]
+            depot_open = mask.gather(2, depot_idx_expanded) & ~must_leave.unsqueeze(-1)         # [B, A, 1]
+            mask.scatter_(2, depot_idx_expanded, depot_open)
+
+        return mask
+
+
+    def _update_done(self, action):
+
         """
         Update done state.
 
@@ -824,7 +938,6 @@ class Environment(AECEnv):
         #Current route length
         self.td_state['cur_agent']['cur_route_length'] += distance2j
         self.td_state['agents']['route_length'].scatter_(1, self.td_state['cur_agent_idx'], self.td_state['cur_agent']['cur_route_length'])    
-
         # update agent cum traveled time
         self.td_state['cur_agent']['cur_ttime'] = time2j
         self.td_state['cur_agent']['cum_ttime'] += time2j
@@ -846,7 +959,7 @@ class Environment(AECEnv):
         # update used capacities
         selected_demand_linehaul = gather_by_index(src=self.td_state['linehaul_demands'], idx=self.td_state['cur_agent']['cur_node_idx'], dim=1, squeeze=False)
         selected_demand_backhaul = gather_by_index(src=self.td_state['backhaul_demands'], idx=self.td_state['cur_agent']['cur_node_idx'], dim=1, squeeze=False)
-        cur_node = self.td_state['agents']['cur_node_idx'].gather(1, self.td_state['cur_agent_idx']).clone()
+        #cur_node = self.td_state['agents']['cur_node_idx'].gather(1, self.td_state['cur_agent_idx']).clone()
         used_capacity_linehaul = (self.td_state['cur_agent']['used_capacity_linehaul'] + selected_demand_linehaul)
         used_capacity_backhaul = (self.td_state['cur_agent']['used_capacity_backhaul'] + selected_demand_backhaul)
         self.td_state['cur_agent']['used_capacity_linehaul'] = used_capacity_linehaul
@@ -856,8 +969,7 @@ class Environment(AECEnv):
 
         # if all done activate first agent to guarantee batch consistency during agent sampling
         self.td_state['agents']['active_agents_mask'][self.td_state['agents']['active_agents_mask'].sum(1).eq(0), 0] = True
-        self.td_state['cur_node_idx'] = action.clone()
-        self.td_state['agents']['active_agents_mask']
+
 
     def set_cur_agent(self, cur_agent_idx, td: TensorDict):
         """
@@ -1074,6 +1186,29 @@ class Environment(AECEnv):
             visited_nodes.scatter_(1, next_node.unsqueeze(-1), fill + 1)
 
             curr_length = curr_length + dist * ~(self.td_state['open_routes'].squeeze(-1) & (next_node == 0)) #Update curr_length
+
+            dist_limit = self.td_state['distance_limits'].squeeze(-1)
+            violations = curr_length > dist_limit
+            if violations.any():
+                bad = violations.nonzero(as_tuple=True)[0]
+                print(f"\n[check_solution_validity] step={ii}  DISTANCE LIMIT VIOLATIONS in {bad.numel()} batch rows:")
+                for row in bad[:5].tolist():  # show first 5 violations
+                    print(f"  row={row}"
+                          f"  curr_length={curr_length[row]:.6f}"
+                          f"  dist_limit={dist_limit[row]:.6f}"
+                          f"  excess={curr_length[row]-dist_limit[row]:.6f}"
+                          f"  step_dist={dist[row]:.6f}"
+                          f"  curr_node={curr_node[row].item()}"
+                          f"  next_node={next_node[row].item()}"
+                          f"  open_route={self.td_state['open_routes'].squeeze(-1)[row].item()}")
+                    # show agent responsible for this step
+                    agent_at_step = self.td_state['solution']['agents'][row, ii].item()
+                    print(f"  agent_at_step={agent_at_step}"
+                          f"  route_length_in_state={self.td_state['agents']['route_length'][row, agent_at_step]:.6f}"
+                          f"  max_distance_limit={self.td_state['distance_limits'][row].squeeze().item():.6f}")
+                assert False, "Route length exceeds distance limit."
+
+
             assert torch.all(curr_length <= self.td_state['distance_limits'].squeeze(-1)), "Route length exceeds distance limit."
             curr_length[next_node == 0] = 0.0 #Reset length for depot
 
