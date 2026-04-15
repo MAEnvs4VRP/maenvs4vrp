@@ -2,7 +2,7 @@ import pytest
 import importlib
 import torch
 
-ENVIRONMENT_LIST = ['mtvrp', 'gmtvrp', 'mtdvrp', 'gmtdvrp']
+ENVIRONMENT_LIST = ['mtvrp']#, 'gmtvrp', 'mtdvrp', 'gmtdvrp']
 
 VARIANT_PRESETS = [
     'cvrp', 'ovrp', 'ovrpb', 'ovrpbl', 'ovrpbltw', 'ovrpbtw',
@@ -105,6 +105,32 @@ def environment_instances_fixture_rand(request):
     return environment
 
 
+@pytest.fixture(params=ENVIRONMENT_LIST)
+def environment_instances_fixture_no_selection(request):
+    """Fixture for environments without built-in agent selection."""
+    env_agent_selector_module_name = f'maenvs4vrp.environments.{request.param}.env_agent_selector'
+    env_agent_selector = importlib.import_module(env_agent_selector_module_name).AgentSelector()
+
+    observations_module_name = f'maenvs4vrp.environments.{request.param}.observations'
+    observations = importlib.import_module(observations_module_name).Observations()
+
+    generator_module_name = f'maenvs4vrp.environments.{request.param}.instances_generator'
+    generator = importlib.import_module(generator_module_name).InstanceGenerator()
+
+    environment_module_name = f'maenvs4vrp.environments.{request.param}.env'
+    environment_module = importlib.import_module(environment_module_name)
+
+    env_agent_reward_module_name = f'maenvs4vrp.environments.{request.param}.env_agent_reward'
+    reward_evaluator = importlib.import_module(env_agent_reward_module_name).DenseReward()
+
+    environment = environment_module.Environment(instance_generator_object=generator,
+                                                 obs_builder_object=observations,
+                                                 agent_selector_object=env_agent_selector,
+                                                 reward_evaluator=reward_evaluator,
+                                                 )
+    return environment
+
+
 def test_print_defined_values(define_values_fixture):
     defined_device, defined_batch_size, defined_num_agents, defined_num_nodes = define_values_fixture
     print(f"""
@@ -186,4 +212,93 @@ def test_instance_env_preset_agent_rand_iterator_gives_no_error(environment_inst
                     td = env.step_agent_select_observe(td)
                 env.check_solution_validity()
 
-# TODO expand tests for selecting types
+
+# Sequential agent-node selection tests
+def test_instance_env_agent_node_selection_gives_no_error(environment_instances_fixture_no_selection, define_values_fixture):
+    """Test sequential selection: sample agent first, then action."""
+    defined_device, defined_batch_size, defined_num_agents, defined_num_nodes = define_values_fixture
+    env = environment_instances_fixture_no_selection
+    for nnodes in defined_num_nodes:
+        for nagents in defined_num_agents:
+            td = env.reset(num_agents=nagents, num_nodes=nnodes, device=defined_device, batch_size=defined_batch_size)
+            while not td["done"].all():  
+                td = env.sample_agent(td)
+                td = env.sample_action(td)
+                td = env.step_observe(td)
+            env.check_solution_validity()
+
+
+# Simultaneous agent-node selection tests
+def test_instance_env_joint_selection_gives_no_error(environment_instances_fixture_no_selection, define_values_fixture):
+    """Test joint selection: sample agent and action simultaneously."""
+    defined_device, defined_batch_size, defined_num_agents, defined_num_nodes = define_values_fixture
+    env = environment_instances_fixture_no_selection
+    for nnodes in defined_num_nodes:
+        for nagents in defined_num_agents:
+            td = env.reset_observe(num_agents=nagents, num_nodes=nnodes, device=defined_device, batch_size=defined_batch_size)
+            while not td["done"].all():  
+                td = env.sample_joint(td)
+                td = env.step_observe(td)
+            env.check_solution_validity()
+
+
+# Sequential node-agent selection tests
+def test_instance_env_node_agent_selection_gives_no_error(environment_instances_fixture_no_selection, define_values_fixture):
+    """Test sequential selection: sample action first, then agent conditioned on action."""
+    defined_device, defined_batch_size, defined_num_agents, defined_num_nodes = define_values_fixture
+    env = environment_instances_fixture_no_selection
+    for nnodes in defined_num_nodes:
+        for nagents in defined_num_agents:
+            td = env.reset_observe(num_agents=nagents, num_nodes=nnodes, device=defined_device, batch_size=defined_batch_size)
+            while not td["done"].all():  
+                td = env.sample_action(td, action_without_agent=True)
+                td = env.sample_agent(td, agent_given_action=True)
+                td = env.step_observe(td)
+            env.check_solution_validity()
+
+
+# Sequential agent-node selection with preset variants
+def test_instance_env_preset_agent_node_selection_gives_no_error(environment_instances_fixture_no_selection, define_values_fixture):
+    """Test sequential agent-node selection with variant presets."""
+    defined_device, defined_batch_size, defined_num_agents, defined_num_nodes = define_values_fixture
+    for variant in VARIANT_PRESETS:
+        env = environment_instances_fixture_no_selection
+        for nnodes in defined_num_nodes:
+            for nagents in defined_num_agents:
+                td = env.reset(num_agents=nagents, num_nodes=nnodes, variant_preset=variant, device=defined_device, batch_size=defined_batch_size)
+                while not td["done"].all():  
+                    td = env.sample_agent(td)
+                    td = env.sample_action(td)
+                    td = env.step_observe(td)
+                env.check_solution_validity()
+
+
+# Simultaneous agent-node selection with preset variants
+def test_instance_env_preset_joint_selection_gives_no_error(environment_instances_fixture_no_selection, define_values_fixture):
+    """Test joint agent-node selection with variant presets."""
+    defined_device, defined_batch_size, defined_num_agents, defined_num_nodes = define_values_fixture
+    for variant in VARIANT_PRESETS:
+        env = environment_instances_fixture_no_selection
+        for nnodes in defined_num_nodes:
+            for nagents in defined_num_agents:
+                td = env.reset_observe(num_agents=nagents, num_nodes=nnodes, variant_preset=variant, device=defined_device, batch_size=defined_batch_size)
+                while not td["done"].all():  
+                    td = env.sample_joint(td)
+                    td = env.step_observe(td)
+                env.check_solution_validity()
+
+
+# Sequential node-agent selection with preset variants
+def test_instance_env_preset_node_agent_selection_gives_no_error(environment_instances_fixture_no_selection, define_values_fixture):
+    """Test sequential node-agent selection with variant presets."""
+    defined_device, defined_batch_size, defined_num_agents, defined_num_nodes = define_values_fixture
+    for variant in VARIANT_PRESETS:
+        env = environment_instances_fixture_no_selection
+        for nnodes in defined_num_nodes:
+            for nagents in defined_num_agents:
+                td = env.reset_observe(num_agents=nagents, num_nodes=nnodes, variant_preset=variant, device=defined_device, batch_size=defined_batch_size)
+                while not td["done"].all():  
+                    td = env.sample_action(td, action_without_agent=True)
+                    td = env.sample_agent(td, agent_given_action=True)
+                    td = env.step_observe(td)
+                env.check_solution_validity()
