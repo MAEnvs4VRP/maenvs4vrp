@@ -220,7 +220,7 @@ Contributing
 We welcome contributions to **MAEnvs4VRP**!  
 If you’d like to use this library in your academic research/industry projects, or if you have suggestions, feature requests, or any feedback, we’d be happy to hear from you.  
 
-You can **open an issue** here on GitHub or **drop us an email** — we’d love to collaborate and improve the project together.
+Feel free to `open an issue <https://github.com/ricgama/maenvs4vrp/issues>`_ or submit a `pull request <https://github.com/ricgama/maenvs4vrp/pulls>`_. If you would like to contribute, please check out our contribution guidelines `here <https://github.com/ricgama/maenvs4vrp/blob/pre_commit_setup/.github/CONTRIBUTING.rst>`_. We welcome and look forward to all contributions to MAEnvs4vrp
 
 
 Acknowledgements

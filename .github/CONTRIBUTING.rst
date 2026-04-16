@@ -34,7 +34,7 @@ Pre-commit Setup
 
 The project is configured to use **pre-commit**, which ensures that all code meets quality standards before being committed.
 
-If you don’t have it installed, install it with:
+If you don’t have it installed, install it with::
 
    pip install pre-commit
 
