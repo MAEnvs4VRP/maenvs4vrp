@@ -5,13 +5,13 @@ Describe your changes in detail.
 Motivation and Context
 ----------------------
 
-Why is this change required? What problem does it solve? If it fixes an open issue, please link to the issue here. You can use the syntax close #15213 if this solves the issue #15213::
+Why is this change required? What problem does it solve? If it fixes an open issue, please link to the issue here. You can use the syntax close #15213 if this solves the issue #15213
 
  ☐ I have raised an issue to propose this change (`required <https://github.com/ricgama/maenvs4vrp/issues>`_ for new features and bug fixes)
 
 Types of changes
 ----------------
-What types of changes does your code introduce? Remove all that do not apply::
+What types of changes does your code introduce? Remove all that do not apply
 
  ☐ Bug fix (non-breaking change which fixes an issue)
  
@@ -25,7 +25,7 @@ What types of changes does your code introduce? Remove all that do not apply::
 
 Checklist
 ---------
-Go over all the following points, and put an x in all the boxes that apply. If you are unsure about any of these, don't hesitate to ask. We are here to help!::
+Go over all the following points, and put an x in all the boxes that apply. If you are unsure about any of these, don't hesitate to ask. We are here to help!
 
  ☐ My change requires a change to the documentation.
  
