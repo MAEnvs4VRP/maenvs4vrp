@@ -1,17 +1,14 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
-from torch.utils.checkpoint import checkpoint
-from torch.distributions import Categorical
 
-import numpy as np
 import math
 
-'''
+"""
 Adapted from: https://github.com/cpwan/RLOR/tree/main
 
-'''
+"""
+
 
 class AttentionScore(nn.Module):
     r"""
@@ -66,8 +63,10 @@ class AttentionScore(nn.Module):
         else:
             logits = u
         if mask is not None:
-            #logits[mask.expand_as(logits)] = float("-inf")  # masked after clipping
-            logits = logits.masked_fill(mask.unsqueeze(1).expand_as(logits) == False, float('-inf'))
+            # logits[mask.expand_as(logits)] = float("-inf")  # masked after clipping
+            logits = logits.masked_fill(
+                mask.unsqueeze(1).expand_as(logits) == False, float("-inf")
+            )
 
         return logits
 
@@ -124,7 +123,9 @@ class MultiHeadAttention(nn.Module):
     def _make_heads(self, v):
         batch_size, nkeys, h_dim = v.shape
         #  [batch_size, ..., n_heads* head_dim] --> [n_heads, batch_size, ..., head_dim]
-        out = v.reshape(batch_size, nkeys, self.n_heads, h_dim // self.n_heads).movedim(-2, 0)
+        out = v.reshape(batch_size, nkeys, self.n_heads, h_dim // self.n_heads).movedim(
+            -2, 0
+        )
         return out
 
     def _unmake_heads(self, v):
@@ -186,7 +187,6 @@ class MultiHeadAttentionProj(nn.Module):
         self.MHA = MultiHeadAttention(embed_dim, n_heads)
 
     def forward(self, q, h=None, mask=None):
-
         if h is None:
             h = q  # compute self-attention
 
@@ -197,7 +197,8 @@ class MultiHeadAttentionProj(nn.Module):
         out = self.MHA(query, key, value, mask)
 
         return out
-    
+
+
 class SkipConnection(nn.Module):
     def __init__(self, module):
         super(SkipConnection, self).__init__()
@@ -205,6 +206,7 @@ class SkipConnection(nn.Module):
 
     def forward(self, input):
         return input + self.module(input)
+
 
 class GatingMechanism(nn.Module):
     def __init__(self, module, d_input, bg=0.1):
@@ -231,6 +233,7 @@ class GatingMechanism(nn.Module):
         g = torch.mul(1 - z, input) + torch.mul(z, h)
         return g
 
+
 class Normalization(nn.Module):
     def __init__(self, embed_dim):
         super(Normalization, self).__init__()
@@ -241,6 +244,7 @@ class Normalization(nn.Module):
         #         out = self.normalizer(input.permute(0,2,1)).permute(0,2,1) # slightly different 3e-6
         #         return out
         return self.normalizer(input.view(-1, input.size(-1))).view(input.size())
+
 
 class GatedMultiHeadAttentionLayer(nn.Sequential):
     r"""
@@ -286,7 +290,8 @@ class GatedMultiHeadAttentionLayer(nn.Sequential):
                 MultiHeadAttentionProj(
                     embed_dim=embed_dim,
                     n_heads=n_heads,
-                ), embed_dim
+                ),
+                embed_dim,
             ),
             Normalization(embed_dim),
             SkipConnection(
@@ -300,6 +305,7 @@ class GatedMultiHeadAttentionLayer(nn.Sequential):
             ),
             Normalization(embed_dim),
         )
+
 
 class MultiHeadAttentionLayer(nn.Sequential):
     r"""
@@ -395,16 +401,15 @@ class GraphAttentionEncoder(nn.Module):
         )
 
     def forward(self, x, mask=None):
-
         assert mask is None, "TODO mask not yet supported!"
 
         h = self.layers(x)
 
         return (h, h.mean(dim=1))
-    
+
+
 class DynamicEmbedding(nn.Module):
-    """Dynamic embedding 
-    """
+    """Dynamic embedding"""
 
     def __init__(self, nodes_dyn_dim, embed_dim, linear_bias=False):
         super(DynamicEmbedding, self).__init__()
@@ -415,6 +420,7 @@ class DynamicEmbedding(nn.Module):
             dyn_node_obs
         ).chunk(3, dim=-1)
         return glimpse_key_dynamic, glimpse_val_dynamic, logit_key_dynamic
+
 
 class GatingMechanism(torch.nn.Module):
     def __init__(self, d_input, bg=0.1):
@@ -436,136 +442,183 @@ class GatingMechanism(torch.nn.Module):
         h = self.tanh(self.Wg(y) + self.Ug(torch.mul(r, x)))
         g = torch.mul(1 - z, x) + torch.mul(z, h)
         return g
-    
+
 
 class PolicyNet(nn.Module):
-    def __init__(self, nodes_stat_obs_dim, 
-                       nodes_dyn_obs_dim, 
-                       agent_obs_dim, 
-                       agents_obs_dim, 
-                       global_obs_dim, 
-                       embed_dim):
+    def __init__(
+        self,
+        nodes_stat_obs_dim,
+        nodes_dyn_obs_dim,
+        agent_obs_dim,
+        agents_obs_dim,
+        global_obs_dim,
+        embed_dim,
+    ):
         super(PolicyNet, self).__init__()
-        
-        self.nodes_embedding = nn.Linear(nodes_stat_obs_dim, embed_dim, bias = False)
+
+        self.nodes_embedding = nn.Linear(nodes_stat_obs_dim, embed_dim, bias=False)
 
         self.nodes_dyn_embedding = DynamicEmbedding(nodes_dyn_obs_dim, embed_dim)
-        self.agent_embedding = nn.Linear(agent_obs_dim+global_obs_dim, embed_dim, bias = False)
-        
-        self.project_node_embeddings = nn.Linear(embed_dim, 3*embed_dim, bias = False)
+        self.agent_embedding = nn.Linear(
+            agent_obs_dim + global_obs_dim, embed_dim, bias=False
+        )
+
+        self.project_node_embeddings = nn.Linear(embed_dim, 3 * embed_dim, bias=False)
 
         self.nodes_encoder = GraphAttentionEncoder(
             n_heads=8,
             embed_dim=embed_dim,
             n_layers=3,
         )
-            
+
         self.nodes_glimpse = MultiHeadAttention(embed_dim=embed_dim, n_heads=8)
         self.agent_glimpse = MultiHeadAttentionProj(embed_dim=embed_dim, n_heads=8)
 
         self.pointer = AttentionScore(use_tanh=True, C=10)
-        
-        self.active_agents_embedding = nn.Linear(agents_obs_dim, embed_dim, bias = False)
+
+        self.active_agents_embedding = nn.Linear(agents_obs_dim, embed_dim, bias=False)
 
         self._initialize_parameters()
         self.cache = None
-        
+
     def _initialize_parameters(self):
         for name, param in self.named_parameters():
             if len(param.shape) > 1:
                 nn.init.xavier_uniform_(param)
 
     def make_cache_(self, nodes_obs):
-        
         nodes_emb = self.nodes_embedding(nodes_obs)
         nodes_encoded, _ = self.nodes_encoder(nodes_emb)
-        glimpse_key, glimpse_val, logit_key = self.project_node_embeddings(nodes_encoded).chunk(
-            3, dim=-1
-        )
+        glimpse_key, glimpse_val, logit_key = self.project_node_embeddings(
+            nodes_encoded
+        ).chunk(3, dim=-1)
 
-        self.cached_embed = (
-            glimpse_key,
-            glimpse_val,
-            logit_key) 
-        
-    def forward(self, nodes_dyn_obs, self_obs, agents_obs, agents_mask, global_obs, action_mask):
+        self.cached_embed = (glimpse_key, glimpse_val, logit_key)
 
+    def forward(
+        self, nodes_dyn_obs, self_obs, agents_obs, agents_mask, global_obs, action_mask
+    ):
         agent_global_obs = torch.concat((self_obs, global_obs), dim=-1)
 
         agent_embed = self.agent_embedding(agent_global_obs)
-        
-        agents_embed = self.active_agents_embedding(agents_obs)        
-        
+
+        agents_embed = self.active_agents_embedding(agents_obs)
+
         glimpse_K, glimpse_V, logit_K = self.cached_embed
 
-        query = agent_embed.unsqueeze(1) 
-        glimpse_key_dynamic, glimpse_val_dynamic, logit_key_dynamic = self.nodes_dyn_embedding(nodes_dyn_obs)
+        query = agent_embed.unsqueeze(1)
+        glimpse_key_dynamic, glimpse_val_dynamic, logit_key_dynamic = (
+            self.nodes_dyn_embedding(nodes_dyn_obs)
+        )
         glimpse_K = glimpse_K + glimpse_key_dynamic
         glimpse_V = glimpse_V + glimpse_val_dynamic
         logit_K = logit_K + logit_key_dynamic
-        
+
         nodes_glimpse = self.nodes_glimpse(query, glimpse_K, glimpse_V, action_mask)
         agent_glimpse = self.agent_glimpse(query, agents_embed, agents_mask)
-        
-        glimpse = nodes_glimpse+agent_glimpse  
+
+        glimpse = nodes_glimpse + agent_glimpse
         logits = self.pointer(glimpse, logit_K, action_mask).squeeze(1)
         return logits, glimpse.squeeze(1)
 
-    def get_action(self, nodes_obs, self_obs, agents_obs, agents_mask, global_obs, action_mask=None, deterministic=False):
-        action_logits, glimpse = self.forward(nodes_obs, self_obs, agents_obs, agents_mask, global_obs, action_mask)
+    def get_action(
+        self,
+        nodes_obs,
+        self_obs,
+        agents_obs,
+        agents_mask,
+        global_obs,
+        action_mask=None,
+        deterministic=False,
+    ):
+        action_logits, glimpse = self.forward(
+            nodes_obs, self_obs, agents_obs, agents_mask, global_obs, action_mask
+        )
         probs = torch.distributions.Categorical(logits=action_logits)
         if deterministic:
             return probs.mode
         else:
             return probs.sample()
 
-    def get_action_and_logs(self, nodes_obs, self_obs, agents_obs, agents_mask, global_obs, action_mask=None, action=None, deterministic=False):
-        action_logits, glimpse = self.forward(nodes_obs, self_obs, agents_obs, agents_mask, global_obs, action_mask)
+    def get_action_and_logs(
+        self,
+        nodes_obs,
+        self_obs,
+        agents_obs,
+        agents_mask,
+        global_obs,
+        action_mask=None,
+        action=None,
+        deterministic=False,
+    ):
+        action_logits, glimpse = self.forward(
+            nodes_obs, self_obs, agents_obs, agents_mask, global_obs, action_mask
+        )
         probs = torch.distributions.Categorical(logits=action_logits)
         if action is None:
             if deterministic:
                 action = probs.mode
             else:
                 action = probs.sample()
-        
+
         return action, probs.log_prob(action), probs.entropy()
-    
+
 
 class CriticNet(nn.Module):
     def __init__(self, hidden_dim):
         super(CriticNet, self).__init__()
 
-        self.critic_net = nn.Sequential(nn.Linear(hidden_dim, hidden_dim, bias = False), 
-                                nn.ReLU(), nn.Linear(hidden_dim, 1, bias = False))
+        self.critic_net = nn.Sequential(
+            nn.Linear(hidden_dim, hidden_dim, bias=False),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, 1, bias=False),
+        )
 
     def forward(self, agent_state):
         return self.critic_net(agent_state)
-    
+
 
 class Learner(nn.Module):
-    def __init__(self, nodes_stat_obs_dim, 
-                       nodes_dyn_obs_dim, 
-                       agent_obs_dim, 
-                       agents_obs_dim, 
-                       global_obs_dim, 
-                       embed_dim=128):
+    def __init__(
+        self,
+        nodes_stat_obs_dim,
+        nodes_dyn_obs_dim,
+        agent_obs_dim,
+        agents_obs_dim,
+        global_obs_dim,
+        embed_dim=128,
+    ):
         super(Learner, self).__init__()
 
-        self.policy = PolicyNet(nodes_stat_obs_dim, 
-                       nodes_dyn_obs_dim, 
-                       agent_obs_dim, 
-                       agents_obs_dim, 
-                       global_obs_dim, 
-                       embed_dim)
+        self.policy = PolicyNet(
+            nodes_stat_obs_dim,
+            nodes_dyn_obs_dim,
+            agent_obs_dim,
+            agents_obs_dim,
+            global_obs_dim,
+            embed_dim,
+        )
         self.critic_net = CriticNet(embed_dim)
 
-    def get_action_and_logs(self, nodes_obs, self_obs, agents_obs, agents_mask, global_obs, action_mask=None, action=None, deterministic=False):
-        action_logits, glimpse = self.policy.forward(nodes_obs, self_obs, agents_obs, agents_mask, global_obs, action_mask)
+    def get_action_and_logs(
+        self,
+        nodes_obs,
+        self_obs,
+        agents_obs,
+        agents_mask,
+        global_obs,
+        action_mask=None,
+        action=None,
+        deterministic=False,
+    ):
+        action_logits, glimpse = self.policy.forward(
+            nodes_obs, self_obs, agents_obs, agents_mask, global_obs, action_mask
+        )
         probs = torch.distributions.Categorical(logits=action_logits)
         if action is None:
             if deterministic:
                 action = probs.mode
             else:
                 action = probs.sample()
-        
+
         return action, probs.log_prob(action), probs.entropy(), self.critic_net(glimpse)

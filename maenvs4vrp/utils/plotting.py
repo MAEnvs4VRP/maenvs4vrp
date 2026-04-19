@@ -7,6 +7,7 @@ from maenvs4vrp.core.env import AECEnv
 import matplotlib.pyplot as plt
 from maenvs4vrp.utils.utils import get_solution
 
+
 def plot_instance_coords(
     instance: Mapping[str, Any],
     batch_idx: int = 0,
@@ -25,7 +26,7 @@ def plot_instance_coords(
       1) instance['data']['is_depot'] -> boolean tensor mask (batched or not)
       2) instance['data']['depot_idx'] or instance['depot_idx'] -> int index
       3) fallback: depot index 0
-    
+
     Args:
         instance(Mapping[str, Any]): Mapping with a 'data' key containing 'coords' tensor of shape [B, N, 2] or [N, 2].
         batch_idx(int): Which batch to plot if coords are batched. Defaults to 0.
@@ -41,7 +42,6 @@ def plot_instance_coords(
         None.
     """
     coords = instance["data"]["coords"]
-
 
     # Normalize coords to [N, 2]
     if isinstance(coords, torch.Tensor) and coords.dim() == 3:
@@ -60,7 +60,10 @@ def plot_instance_coords(
     if show_depot:
         is_depot = None
         # Try is_depot mask first
-        if isinstance(instance.get("data", {}), Mapping) and "is_depot" in instance["data"]:
+        if (
+            isinstance(instance.get("data", {}), Mapping)
+            and "is_depot" in instance["data"]
+        ):
             is_depot_raw = instance["data"]["is_depot"]
             if isinstance(is_depot_raw, torch.Tensor):
                 if is_depot_raw.dim() == 2:
@@ -74,12 +77,18 @@ def plot_instance_coords(
             depot_idx = None
             data = instance.get("data", {})
             if isinstance(data, Mapping) and "depot_idx" in data:
-                depot_idx = int(data["depot_idx"]) if not isinstance(data["depot_idx"], torch.Tensor) \
+                depot_idx = (
+                    int(data["depot_idx"])
+                    if not isinstance(data["depot_idx"], torch.Tensor)
                     else int(data["depot_idx"].detach().cpu().item())
+                )
             elif "depot_idx" in instance:
                 depot_idx_val = instance["depot_idx"]
-                depot_idx = int(depot_idx_val) if not isinstance(depot_idx_val, torch.Tensor) \
+                depot_idx = (
+                    int(depot_idx_val)
+                    if not isinstance(depot_idx_val, torch.Tensor)
                     else int(depot_idx_val.detach().cpu().item())
+                )
 
             if depot_idx is None:
                 # Fallback: assume 0 is depot if available
@@ -98,20 +107,28 @@ def plot_instance_coords(
     # Services or all points (when show_depot=False)
     if services_mask.any():
         ax.scatter(
-            xy[services_mask, 0], xy[services_mask, 1],
-            s=point_size, c="#1f77b4",
-            label="Service" if show_depot else "Node"
+            xy[services_mask, 0],
+            xy[services_mask, 1],
+            s=point_size,
+            c="#1f77b4",
+            label="Service" if show_depot else "Node",
         )
     # Depot(s)
     if show_depot and depot_mask.any():
         ax.scatter(
-            xy[depot_mask, 0], xy[depot_mask, 1],
-            s=point_size * 1.2, c="#d62728", marker="s", label="Depot"
+            xy[depot_mask, 0],
+            xy[depot_mask, 1],
+            s=point_size * 1.2,
+            c="#d62728",
+            marker="s",
+            label="Depot",
         )
 
     if annotate:
         for i, (x, y) in enumerate(xy.tolist()):
-            ax.annotate(str(i), (x, y), textcoords="offset points", xytext=(4, 4), fontsize=8)
+            ax.annotate(
+                str(i), (x, y), textcoords="offset points", xytext=(4, 4), fontsize=8
+            )
 
     ax.set_aspect("equal", adjustable="box")
     if N > 0:
@@ -125,7 +142,9 @@ def plot_instance_coords(
         # Place legend below the plot and reserve bottom space
         handles, labels = ax.get_legend_handles_labels()
         # Filter out empty/private labels just in case
-        filtered = [(h, l) for h, l in zip(handles, labels) if l and not str(l).startswith("_")]
+        filtered = [
+            (h, l) for h, l in zip(handles, labels) if l and not str(l).startswith("_")
+        ]
         if filtered:
             handles, labels = zip(*filtered)
             ncol = max(1, min(3, len(labels)))
@@ -229,7 +248,11 @@ def plot_random_batch_instances(
     # Plot each selected batch element
     for i, batch_idx in enumerate(selected):
         ax = axs_flat[i]
-        ttl = (titles[i] if (titles is not None and i < len(titles)) else f"Batch {batch_idx}")
+        ttl = (
+            titles[i]
+            if (titles is not None and i < len(titles))
+            else f"Batch {batch_idx}"
+        )
         plot_instance_coords(
             instance=instance,
             batch_idx=batch_idx,
@@ -250,7 +273,9 @@ def plot_random_batch_instances(
     legend_added = False
     if n > 0:
         handles, labels = axs_flat[0].get_legend_handles_labels()
-        filtered = [(h, l) for h, l in zip(handles, labels) if l and not str(l).startswith("_")]
+        filtered = [
+            (h, l) for h, l in zip(handles, labels) if l and not str(l).startswith("_")
+        ]
         if filtered:
             handles, labels = zip(*filtered)
             ncol = max(1, min(3, len(labels)))
@@ -285,29 +310,31 @@ def plot_random_batch_instances(
     return None
 
 
-
-def plot_env_instance_coords(env: AECEnv,
-                      batch_idx: int = 0,
-                      annotate: bool = True,
-                      title: Optional[str] = None,
-                      figsize: tuple[int, int] = (5, 5),
-                      point_size: int | float = 50,
-                      show_depot: bool = True,
-                      show_legend: bool = True,
-                      ax: "Optional[object]" = None,
-                      # Matplotlib Axes, kept as object to avoid hard import at module scope
-                      ) -> None:
+def plot_env_instance_coords(
+    env: AECEnv,
+    batch_idx: int = 0,
+    annotate: bool = True,
+    title: Optional[str] = None,
+    figsize: tuple[int, int] = (5, 5),
+    point_size: int | float = 50,
+    show_depot: bool = True,
+    show_legend: bool = True,
+    ax: "Optional[object]" = None,
+    # Matplotlib Axes, kept as object to avoid hard import at module scope
+) -> None:
     instance = env._get_current_instance_data()
-    plot_instance_coords(instance=instance,
-                         batch_idx=batch_idx,
-                         annotate=annotate,
-                         title=title,
-                         figsize=figsize,
-                         point_size=point_size,
-                         show_depot=show_depot,
-                         show_legend=show_legend,
-                         ax=ax
-                        )
+    plot_instance_coords(
+        instance=instance,
+        batch_idx=batch_idx,
+        annotate=annotate,
+        title=title,
+        figsize=figsize,
+        point_size=point_size,
+        show_depot=show_depot,
+        show_legend=show_legend,
+        ax=ax,
+    )
+
 
 def plot_env_random_batch_instances(
     env: AECEnv,
@@ -346,26 +373,24 @@ def plot_env_random_batch_instances(
     """
     instance = env._get_current_instance_data()
     return plot_random_batch_instances(
-            instance=instance,
-            n=n,
-            seed=seed,
-            cols=cols,
-            annotate=annotate,
-            show_depot=show_depot,
-            point_size=point_size,
-            figsize_per_plot=figsize_per_plot,
-            titles=titles,
-            show=show,
-            return_objects=return_objects,
+        instance=instance,
+        n=n,
+        seed=seed,
+        cols=cols,
+        annotate=annotate,
+        show_depot=show_depot,
+        point_size=point_size,
+        figsize_per_plot=figsize_per_plot,
+        titles=titles,
+        show=show,
+        return_objects=return_objects,
     )
-
-
 
 
 def plot_solution_overlay(
     ax: plt.Axes,
-    coords: torch.Tensor,              # shape [N, 2], CPU or CUDA
-    solution: Dict[str, Any],          # output of get_solution(..., batch_idx=...)
+    coords: torch.Tensor,  # shape [N, 2], CPU or CUDA
+    solution: Dict[str, Any],  # output of get_solution(..., batch_idx=...)
     colors: Optional[List[str]] = None,
     linewidth: float = 1.5,
     alpha: float = 0.9,
@@ -408,7 +433,16 @@ def plot_solution_overlay(
     # Prepare colors
     agent_ids = sorted(solution["edges"].keys())
     if colors is None or len(colors) == 0:
-        colors = ["#1f77b4", "#2ca02c", "#ff7f0e", "#9467bd", "#8c564b", "#17becf", "#e377c2", "#7f7f7f"]
+        colors = [
+            "#1f77b4",
+            "#2ca02c",
+            "#ff7f0e",
+            "#9467bd",
+            "#8c564b",
+            "#17becf",
+            "#e377c2",
+            "#7f7f7f",
+        ]
 
     # Agent -> depot mapping (optional, for legend annotation)
     agent_depot = solution.get("agent_depot", {})
@@ -421,16 +455,22 @@ def plot_solution_overlay(
             continue
 
         legend_label = f"Agent {a}"
-        if isinstance(agent_depot, dict) and a in agent_depot and agent_depot[a] is not None:
+        if (
+            isinstance(agent_depot, dict)
+            and a in agent_depot
+            and agent_depot[a] is not None
+        ):
             legend_label = f"{legend_label} (D {agent_depot[a]})"
 
         if not arrows:
             xs = []
             ys = []
-            for (u, v) in segs:
+            for u, v in segs:
                 xs.extend([xy[u, 0], xy[v, 0], None])
                 ys.extend([xy[u, 1], xy[v, 1], None])
-            ax.plot(xs, ys, color=col, linewidth=linewidth, alpha=alpha, label=legend_label)
+            ax.plot(
+                xs, ys, color=col, linewidth=linewidth, alpha=alpha, label=legend_label
+            )
         else:
             drew_any = False
             for j, (u, v) in enumerate(segs):
@@ -444,7 +484,8 @@ def plot_solution_overlay(
                         arrowstyle=arrowstyle,
                         color=col,
                         linewidth=linewidth,
-                        shrinkA=0, shrinkB=0,
+                        shrinkA=0,
+                        shrinkB=0,
                         mutation_scale=mutation_scale,
                         alpha=alpha,
                     ),
@@ -452,10 +493,25 @@ def plot_solution_overlay(
                 )
                 drew_any = True
             if drew_any:
-                ax.plot([], [], color=col, linewidth=linewidth, alpha=alpha, label=legend_label)
+                ax.plot(
+                    [],
+                    [],
+                    color=col,
+                    linewidth=linewidth,
+                    alpha=alpha,
+                    label=legend_label,
+                )
 
 
-def plot_solution(env, batch_idx: int, annotate: bool = True, include_depot_edges: bool = True, per_depot_subplots: bool = False, cols: int | None = None, figsize_per_subplot: tuple[float, float] = (6.0, 6.0)):
+def plot_solution(
+    env,
+    batch_idx: int,
+    annotate: bool = True,
+    include_depot_edges: bool = True,
+    per_depot_subplots: bool = False,
+    cols: int | None = None,
+    figsize_per_subplot: tuple[float, float] = (6.0, 6.0),
+):
     """
     Plot the current environment's solution for a given batch item.
 
@@ -481,7 +537,9 @@ def plot_solution(env, batch_idx: int, annotate: bool = True, include_depot_edge
         None. The function produces the plot and calls plt.show().
     """
     coords: torch.Tensor = env.td_state[batch_idx]["coords"]
-    solution = get_solution(env, batch_idx=batch_idx, include_depot=True, drop_empty_tours=True)
+    solution = get_solution(
+        env, batch_idx=batch_idx, include_depot=True, drop_empty_tours=True
+    )
 
     # Defensive: synthesize a minimal solution if any external caller returns/feeds None
     if solution is None:
@@ -501,7 +559,10 @@ def plot_solution(env, batch_idx: int, annotate: bool = True, include_depot_edge
             "depots": depots_b,
             "tours": {a: [] for a in range(num_agents)},
             "edges": {a: [] for a in range(num_agents)},
-            "agent_depot": {a: (depot_single if depot_single is not None else None) for a in range(num_agents)},
+            "agent_depot": {
+                a: (depot_single if depot_single is not None else None)
+                for a in range(num_agents)
+            },
         }
 
     # Determine a human-friendly instance name for titles
@@ -533,12 +594,17 @@ def plot_solution(env, batch_idx: int, annotate: bool = True, include_depot_edge
         elif isinstance(single_depot, int):
             depots = [single_depot]
 
-        if len(depots) > 1 and isinstance(agent_depot_map, dict) and len(agent_depot_map) > 0:
+        if (
+            len(depots) > 1
+            and isinstance(agent_depot_map, dict)
+            and len(agent_depot_map) > 0
+        ):
             # Create grid
             D = len(depots)
             if cols is None or cols <= 0:
                 # near-square layout
                 import math  # local import to avoid global dependency
+
                 cols = int(math.ceil(math.sqrt(D)))
             rows = (D + cols - 1) // cols
             fig, axes = plt.subplots(
@@ -557,7 +623,9 @@ def plot_solution(env, batch_idx: int, annotate: bool = True, include_depot_edge
                 if isinstance(d, int) and 0 <= d < N:
                     depot_mask[d] = True
 
-                services_mask = ~depot_mask if depot_mask.any() else torch.ones(N, dtype=torch.bool)
+                services_mask = (
+                    ~depot_mask if depot_mask.any() else torch.ones(N, dtype=torch.bool)
+                )
 
                 # Plot services
                 if services_mask.any():
@@ -582,8 +650,12 @@ def plot_solution(env, batch_idx: int, annotate: bool = True, include_depot_edge
 
                 # Prepare filtered solution for this depot: only agents assigned to d
                 agents_for_d = [a for a, dep in agent_depot_map.items() if dep == d]
-                filtered_edges: Dict[int, List[Tuple[int, int]]] = {a: solution["edges"].get(a, []) for a in agents_for_d}
-                filtered_tours: Dict[int, List[List[int]]] = {a: solution["tours"].get(a, []) for a in agents_for_d}
+                filtered_edges: Dict[int, List[Tuple[int, int]]] = {
+                    a: solution["edges"].get(a, []) for a in agents_for_d
+                }
+                filtered_tours: Dict[int, List[List[int]]] = {
+                    a: solution["tours"].get(a, []) for a in agents_for_d
+                }
                 sol_d = {
                     "depot": d,
                     "depots": [d],
@@ -597,7 +669,11 @@ def plot_solution(env, batch_idx: int, annotate: bool = True, include_depot_edge
                     depots_set = {d}
                     fe: Dict[int, List[Tuple[int, int]]] = {}
                     for a, edges in sol_d["edges"].items():
-                        fe[a] = [(u, v) for (u, v) in edges if (u not in depots_set and v not in depots_set)]
+                        fe[a] = [
+                            (u, v)
+                            for (u, v) in edges
+                            if (u not in depots_set and v not in depots_set)
+                        ]
                     sol_d = {**sol_d, "edges": fe}
 
                 # Overlay solution routes
@@ -615,21 +691,37 @@ def plot_solution(env, batch_idx: int, annotate: bool = True, include_depot_edge
                 # Optional annotations
                 if annotate:
                     for i, (x, y) in enumerate(xy.tolist()):
-                        ax.annotate(str(i), (x, y), textcoords="offset points", xytext=(4, 4), fontsize=8)
+                        ax.annotate(
+                            str(i),
+                            (x, y),
+                            textcoords="offset points",
+                            xytext=(4, 4),
+                            fontsize=8,
+                        )
 
                 ax.set_aspect("equal", adjustable="box")
                 if N > 0:
-                    ax.set_xlim(float(xy[:, 0].min()) - 0.02, float(xy[:, 0].max()) + 0.02)
-                    ax.set_ylim(float(xy[:, 1].min()) - 0.02, float(xy[:, 1].max()) + 0.02)
+                    ax.set_xlim(
+                        float(xy[:, 0].min()) - 0.02, float(xy[:, 0].max()) + 0.02
+                    )
+                    ax.set_ylim(
+                        float(xy[:, 1].min()) - 0.02, float(xy[:, 1].max()) + 0.02
+                    )
                 ax.grid(True, alpha=0.2)
 
                 # Subplot title includes instance name, depot and agent list
-                ax.set_title(f"{instance_name} — Depot {d}: Agents {agents_for_d if len(agents_for_d) > 0 else '[]'}")
+                ax.set_title(
+                    f"{instance_name} — Depot {d}: Agents {agents_for_d if len(agents_for_d) > 0 else '[]'}"
+                )
 
                 # Legend below each subplot (close to the axes)
                 try:
                     handles, labels = ax.get_legend_handles_labels()
-                    filtered = [(h, l) for h, l in zip(handles, labels) if l and not str(l).startswith("_")]
+                    filtered = [
+                        (h, l)
+                        for h, l in zip(handles, labels)
+                        if l and not str(l).startswith("_")
+                    ]
                     if filtered:
                         handles, labels = zip(*filtered)
                         ncol = max(1, min(4, len(labels)))
@@ -703,7 +795,11 @@ def plot_solution(env, batch_idx: int, annotate: bool = True, include_depot_edge
     if not include_depot_edges and len(depots_set) > 0:
         filtered_edges: Dict[int, List[Tuple[int, int]]] = {}
         for a, edges in solution["edges"].items():
-            filtered_edges[a] = [(u, v) for (u, v) in edges if (u not in depots_set and v not in depots_set)]
+            filtered_edges[a] = [
+                (u, v)
+                for (u, v) in edges
+                if (u not in depots_set and v not in depots_set)
+            ]
         # Shallow copy with replaced edges; tours are left intact
         solution_for_overlay = {
             "depot": solution.get("depot"),
@@ -728,7 +824,9 @@ def plot_solution(env, batch_idx: int, annotate: bool = True, include_depot_edge
     # Optional node annotations
     if annotate:
         for i, (x, y) in enumerate(xy.tolist()):
-            ax.annotate(str(i), (x, y), textcoords="offset points", xytext=(4, 4), fontsize=8)
+            ax.annotate(
+                str(i), (x, y), textcoords="offset points", xytext=(4, 4), fontsize=8
+            )
 
     ax.set_aspect("equal", adjustable="box")
     if N > 0:
@@ -741,7 +839,9 @@ def plot_solution(env, batch_idx: int, annotate: bool = True, include_depot_edge
     # Place legend below the plot, close to the axes
     try:
         handles, labels = ax.get_legend_handles_labels()
-        filtered = [(h, l) for h, l in zip(handles, labels) if l and not str(l).startswith("_")]
+        filtered = [
+            (h, l) for h, l in zip(handles, labels) if l and not str(l).startswith("_")
+        ]
         if filtered:
             handles, labels = zip(*filtered)
             ncol = max(1, min(4, len(labels)))
@@ -761,5 +861,3 @@ def plot_solution(env, batch_idx: int, annotate: bool = True, include_depot_edge
         pass
 
     plt.show()
-
-

@@ -1,19 +1,19 @@
-from typing import Optional, Dict, List
+from typing import Dict, List
 import torch
 from tensordict import TensorDict
 
+
 class ObservationBuilder:
-    """Observations base class.
-    """
+    """Observations base class."""
 
-    POSSIBLE_NODES_STATIC_FEATURES:List[str] = []
-    POSSIBLE_NODES_DYNAMIC_FEATURES:List[str] = []
-    POSSIBLE_AGENT_FEATURES:List[str] = []
-    POSSIBLE_OTHER_AGENTS_FEATURES:List[str] = []
-    POSSIBLE_ALL_AGENTS_FEATURES:List[str] = []
-    POSSIBLE_GLOBAL_FEATURES:List[str] = []
+    POSSIBLE_NODES_STATIC_FEATURES: List[str] = []
+    POSSIBLE_NODES_DYNAMIC_FEATURES: List[str] = []
+    POSSIBLE_AGENT_FEATURES: List[str] = []
+    POSSIBLE_OTHER_AGENTS_FEATURES: List[str] = []
+    POSSIBLE_ALL_AGENTS_FEATURES: List[str] = []
+    POSSIBLE_GLOBAL_FEATURES: List[str] = []
 
-    def __init__(self, feature_list:Dict = None):
+    def __init__(self, feature_list: Dict = None):
         """
         Constructor
 
@@ -21,12 +21,14 @@ class ObservationBuilder:
             feature_list(Dict): Dictionary containing observation features list to be available to the agent. Defaults to None.
 
         """
-        self.default_feature_list = {'nodes_static': {},
-                                    'nodes_dynamic': [],
-                                    'agent': [],
-                                    'other_agents': [],
-                                    'all_agents': [],
-                                    'global': []}
+        self.default_feature_list = {
+            "nodes_static": {},
+            "nodes_dynamic": [],
+            "agent": [],
+            "other_agents": [],
+            "all_agents": [],
+            "global": [],
+        }
 
         if feature_list is None:
             feature_list = self.default_feature_list
@@ -40,7 +42,6 @@ class ObservationBuilder:
         self.possible_global_features = self.POSSIBLE_GLOBAL_FEATURES
 
     def set_env(self, env):
-
         """
         Set environment.
 
@@ -63,8 +64,12 @@ class ObservationBuilder:
         Returns:
             int: Nodes static features dimensions.
         """
-        return sum([self.feature_list.get('nodes_static', []).get(f).get('dim', 1) \
-                    for f in self.feature_list.get('nodes_static')])
+        return sum(
+            [
+                self.feature_list.get("nodes_static", []).get(f).get("dim", 1)
+                for f in self.feature_list.get("nodes_static")
+            ]
+        )
 
     def get_nodes_dynamic_feat_dim(self):
         """
@@ -76,7 +81,7 @@ class ObservationBuilder:
         Returns:
             int: Nodes dynamic features dimensions.
         """
-        return len(self.feature_list.get('nodes_dynamic', []))
+        return len(self.feature_list.get("nodes_dynamic", []))
 
     def get_nodes_feat_dim(self):
         """
@@ -88,7 +93,7 @@ class ObservationBuilder:
         Returns:
             int: Nodes features dimensions.
         """
-        return self.get_nodes_static_feat_dim()+self.get_nodes_dynamic_feat_dim()
+        return self.get_nodes_static_feat_dim() + self.get_nodes_dynamic_feat_dim()
 
     def get_agent_feat_dim(self):
         """
@@ -100,7 +105,7 @@ class ObservationBuilder:
         Returns:
             int: Agent features dimensions.
         """
-        return len(self.feature_list.get('agent', []))
+        return len(self.feature_list.get("agent", []))
 
     def get_other_agents_feat_dim(self):
         """
@@ -112,15 +117,15 @@ class ObservationBuilder:
         Returns:
             int: Other agent features dimensions.
         """
-        return len(self.feature_list.get('other_agents', []))
+        return len(self.feature_list.get("other_agents", []))
 
     def get_all_agents_feat_dim(self):
         """
         Returns:
             int: all agents features dimentions.
         """
-        return len(self.feature_list.get('all_agents', []))
-    
+        return len(self.feature_list.get("all_agents", []))
+
     def get_global_feat_dim(self):
         """
         Global features dimensions.
@@ -131,8 +136,7 @@ class ObservationBuilder:
         Returns:
             int: Global features dimensions.
         """
-        return len(self.feature_list.get('global', []))
-
+        return len(self.feature_list.get("global", []))
 
     def compute_static_features(self):
         """
@@ -144,21 +148,23 @@ class ObservationBuilder:
         Returns:
             torch.Tensor: Nodes static features.
         """
-        features_static = self.feature_list.get('nodes_static')
-        features_static_set = set([features_static.get(f).get('feat') for f in features_static])
-        undefined_feat = features_static_set-set(self.possible_nodes_static_features)
-        assert_msg = f'{undefined_feat} are not defined, choose from {str(self.possible_nodes_static_features)}'
-        assert len(undefined_feat)==0, assert_msg
+        features_static = self.feature_list.get("nodes_static")
+        features_static_set = set(
+            [features_static.get(f).get("feat") for f in features_static]
+        )
+        undefined_feat = features_static_set - set(self.possible_nodes_static_features)
+        assert_msg = f"{undefined_feat} are not defined, choose from {str(self.possible_nodes_static_features)}"
+        assert len(undefined_feat) == 0, assert_msg
 
         features = list()
         for f in features_static:
-            f_feat = features_static.get(f).get('feat')
-            dim = features_static.get(f).get('dim')
+            f_feat = features_static.get(f).get("feat")
+            dim = features_static.get(f).get("dim")
             if dim:
-                feature = eval(f'self.get_feat_{f_feat}')(dim)
+                feature = eval(f"self.get_feat_{f_feat}")(dim)
             else:
-                feature = eval(f'self.get_feat_{f_feat}')()
-            f_norm = features_static.get(f).get('norm')
+                feature = eval(f"self.get_feat_{f_feat}")()
+            f_norm = features_static.get(f).get("norm")
             norm_feature = self._normalize_feature(feature, f_norm)
             features.append(norm_feature)
         return self._concat_features(features)
@@ -173,13 +179,15 @@ class ObservationBuilder:
         Returns:
             torch.Tensor: Nodes dynamic features.
         """
-        features_dynamic = self.feature_list.get('nodes_dynamic')
-        undefined_feat = set(features_dynamic)-set(self.possible_nodes_dynamic_features)
-        assert_msg = f'{undefined_feat} are not defined, choose from {str(self.possible_nodes_dynamic_features)}'
-        assert len(undefined_feat)==0, assert_msg
+        features_dynamic = self.feature_list.get("nodes_dynamic")
+        undefined_feat = set(features_dynamic) - set(
+            self.possible_nodes_dynamic_features
+        )
+        assert_msg = f"{undefined_feat} are not defined, choose from {str(self.possible_nodes_dynamic_features)}"
+        assert len(undefined_feat) == 0, assert_msg
         features = list()
         for f in features_dynamic:
-            features.append(eval(f'self.get_feat_{f}')())
+            features.append(eval(f"self.get_feat_{f}")())
         return self._concat_features(features)
 
     def compute_agent_features(self):
@@ -192,13 +200,13 @@ class ObservationBuilder:
         Returns:
             torch.Tensor: Current agent features.
         """
-        features_self = self.feature_list.get('agent')
-        undefined_feat = set(features_self)-set(self.possible_agent_features)
-        assert_msg = f'{undefined_feat} are not defined, choose from {str(self.possible_agent_features)}'
-        assert len(undefined_feat)==0, assert_msg
+        features_self = self.feature_list.get("agent")
+        undefined_feat = set(features_self) - set(self.possible_agent_features)
+        assert_msg = f"{undefined_feat} are not defined, choose from {str(self.possible_agent_features)}"
+        assert len(undefined_feat) == 0, assert_msg
         features = list()
         for f in features_self:
-            features.append(eval(f'self.get_feat_agent_{f}')())
+            features.append(eval(f"self.get_feat_agent_{f}")())
         return self._concat_features(features).squeeze(1)
 
     def compute_other_agents_features(self):
@@ -211,13 +219,13 @@ class ObservationBuilder:
         Returns:
             torch.Tensor: Other agent features.
         """
-        features_agents = self.feature_list.get('other_agents')
-        undefined_feat = set(features_agents)-set(self.possible_other_agents_features)
-        assert_msg = f'{undefined_feat} are not defined, choose from {str(self.possible_other_agents_features)}'
-        assert len(undefined_feat)==0, assert_msg
+        features_agents = self.feature_list.get("other_agents")
+        undefined_feat = set(features_agents) - set(self.possible_other_agents_features)
+        assert_msg = f"{undefined_feat} are not defined, choose from {str(self.possible_other_agents_features)}"
+        assert len(undefined_feat) == 0, assert_msg
         features = list()
         for f in features_agents:
-            features.append(eval(f'self.get_feat_other_agents_{f}')())
+            features.append(eval(f"self.get_feat_other_agents_{f}")())
         return self._concat_features(features)
 
     def compute_all_agents_features(self):
@@ -230,15 +238,14 @@ class ObservationBuilder:
         Returns:
             torch.Tensor: All agent features.
         """
-        features_agents = self.feature_list.get('all_agents')
-        undefined_feat = set(features_agents)-set(self.possible_all_agents_features)
-        assert_msg = f'{undefined_feat} are not defined, choose from {str(self.possible_all_agents_features)}'
-        assert len(undefined_feat)==0, assert_msg
+        features_agents = self.feature_list.get("all_agents")
+        undefined_feat = set(features_agents) - set(self.possible_all_agents_features)
+        assert_msg = f"{undefined_feat} are not defined, choose from {str(self.possible_all_agents_features)}"
+        assert len(undefined_feat) == 0, assert_msg
         features = list()
         for f in features_agents:
-            features.append(eval(f'self.get_feat_all_agents_{f}')())
+            features.append(eval(f"self.get_feat_all_agents_{f}")())
         return self._concat_features(features)
-
 
     def compute_global_features(self):
         """
@@ -250,17 +257,16 @@ class ObservationBuilder:
         Returns:
             torch.Tensor: Global features.
         """
-        features_global = self.feature_list.get('global')
-        undefined_feat = set(features_global)-set(self.possible_global_features)
-        assert_msg = f'{undefined_feat} are not defined, choose from {str(self.possible_global_features)}'
-        assert len(undefined_feat)==0, assert_msg
+        features_global = self.feature_list.get("global")
+        undefined_feat = set(features_global) - set(self.possible_global_features)
+        assert_msg = f"{undefined_feat} are not defined, choose from {str(self.possible_global_features)}"
+        assert len(undefined_feat) == 0, assert_msg
         features = list()
         for f in features_global:
-            features.append(eval(f'self.get_feat_global_{f}')())
+            features.append(eval(f"self.get_feat_global_{f}")())
         return self._concat_features(features).squeeze(dim=1)
 
-
-    def get_observations(self, obs_list=None)-> TensorDict:
+    def get_observations(self, obs_list=None) -> TensorDict:
         """
         Get observations method.
 
@@ -270,42 +276,45 @@ class ObservationBuilder:
         Returns
             observations(TensorDict): Current environment observations and masks dictionary.
         """
-        observations = TensorDict({}, batch_size=self.env.batch_size, device=self.env.device)
+        observations = TensorDict(
+            {}, batch_size=self.env.batch_size, device=self.env.device
+        )
         if obs_list is None:
             obs_list = self.feature_list.keys()
 
-        if self.feature_list.get('nodes_static') and 'nodes_static' in obs_list:
+        if self.feature_list.get("nodes_static") and "nodes_static" in obs_list:
             static_feat = self.compute_static_features()
-            observations['nodes_static_obs'] =  static_feat   
+            observations["nodes_static_obs"] = static_feat
 
-        if self.feature_list.get('nodes_dynamic') and 'nodes_dynamic' in obs_list:
+        if self.feature_list.get("nodes_dynamic") and "nodes_dynamic" in obs_list:
             dynamic_feat = self.compute_dynamic_features()
-            observations['nodes_dynamic_obs'] =  dynamic_feat
+            observations["nodes_dynamic_obs"] = dynamic_feat
 
-        if self.feature_list.get('agent') and 'agent' in obs_list:
+        if self.feature_list.get("agent") and "agent" in obs_list:
             agent_feat = self.compute_agent_features()
-            observations['agent_obs'] = agent_feat
+            observations["agent_obs"] = agent_feat
 
-        if self.feature_list.get('other_agents') and 'other_agents' in obs_list:
+        if self.feature_list.get("other_agents") and "other_agents" in obs_list:
             agents_feat = self.compute_other_agents_features()
-            mask_agents_feat = self.env.td_state['agents']['active_agents_mask'].unsqueeze(dim=-1) * agents_feat
-            observations['other_agents_obs'] = mask_agents_feat
+            mask_agents_feat = (
+                self.env.td_state["agents"]["active_agents_mask"].unsqueeze(dim=-1)
+                * agents_feat
+            )
+            observations["other_agents_obs"] = mask_agents_feat
 
-        if self.feature_list.get('all_agents') and 'all_agents' in obs_list:
+        if self.feature_list.get("all_agents") and "all_agents" in obs_list:
             agents_feat = self.compute_all_agents_features()
-            mask_agents_feat = self.env.td_state['agents']['active_agents_mask'].unsqueeze(dim=-1) * agents_feat
-            observations['all_agents_obs'] = mask_agents_feat
+            mask_agents_feat = (
+                self.env.td_state["agents"]["active_agents_mask"].unsqueeze(dim=-1)
+                * agents_feat
+            )
+            observations["all_agents_obs"] = mask_agents_feat
 
-        if self.feature_list.get('global') and 'global' in obs_list:
+        if self.feature_list.get("global") and "global" in obs_list:
             global_feat = self.compute_global_features()
-            observations['global_obs'] = global_feat
-            
+            observations["global_obs"] = global_feat
+
         return observations
-
-
-
-
-
 
     # auxiliary functions
 
@@ -321,9 +330,9 @@ class ObservationBuilder:
             torch.Tensor: Concatenated tensor.
         """
 
-        return torch.cat(\
-                [f.unsqueeze(dim=-1) if f.dim()==2 else f for f in features],
-                              dim=-1)
+        return torch.cat(
+            [f.unsqueeze(dim=-1) if f.dim() == 2 else f for f in features], dim=-1
+        )
 
     def _normalize_feature(self, x, norm):
         """
@@ -337,9 +346,9 @@ class ObservationBuilder:
             torch.Tensor: Tensor normalized or default tensor if norm is invalid.
         """
 
-        if norm == 'min_max':
+        if norm == "min_max":
             return self._min_max_normalization(x)
-        elif norm == 'standardize':
+        elif norm == "standardize":
             return self._standardize(x)
         elif norm == None:
             return x
@@ -381,7 +390,7 @@ class ObservationBuilder:
 
         Args:
             x(torch.Tensor): Tensor to be normalized.
-        
+
         Returns:
             torch.Tensor: Normalized tensor.
         """

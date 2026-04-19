@@ -18,7 +18,6 @@ HF_REPO_ID = "ai4co/parco"
 
 
 class BenchmarkInstanceGenerator(InstanceBuilder):
-
     """
     HCVRP Benchmark Instance Generator class.
     """
@@ -44,8 +43,7 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
 
         return {
             "instances": [
-                f"{BENCHMARK_INSTANCES_PATH}/{fname.split('.')[0]}"
-                for fname in files
+                f"{BENCHMARK_INSTANCES_PATH}/{fname.split('.')[0]}" for fname in files
             ]
         }
 
@@ -64,16 +62,13 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
         base_dir = path.dirname(path.dirname(path.abspath(__file__)))
         target_dir = path.join(base_dir, BENCHMARK_INSTANCES_PATH)
 
-
         if os.path.isdir(target_dir):
             return
-
 
         local_snapshot = snapshot_download(
             repo_id=HF_REPO_ID,
             repo_type="dataset",
         )
-
 
         os.makedirs(target_dir, exist_ok=True)
 
@@ -96,7 +91,6 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
                 log.info(f"Copiado: {fname}")
 
         log.warning("Download concluído.")
-
 
     def __init__(
         self,
@@ -134,11 +128,10 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
         if set_of_instances:
             self.load_set_of_instances()
 
-   
     def load_set_of_instances(self, set_of_instances=None):
         """
         Load every instance on set_of_instances set.
-        
+
         Args:
             set_of_instances(set): Set of instances file names. Defaults to None.
 
@@ -162,7 +155,7 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
         Args:
             instance_name(str): Instance path.
 
-        Returns: 
+        Returns:
             Dict: Instance data.
         """
 
@@ -173,13 +166,13 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
 
         depot = loaded["depot"]
         locs = loaded["locs"]
-        demand = loaded["demand"] 
+        demand = loaded["demand"]
         capacity = loaded["capacity"]
         speed = loaded["speed"]
 
         num_instances = locs.shape[0]
         num_nodes = locs.shape[1]
-        num_agents = capacity.shape[1] 
+        num_agents = capacity.shape[1]
 
         locs_all = locs.copy()
         locs_all[:, 0, :] = depot
@@ -188,9 +181,9 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
         data = TensorDict({}, batch_size=[batch], device=self.device)
 
         data["coords"] = torch.from_numpy(locs_all).float().to(self.device)
-        data["demand"] = torch.from_numpy(demand).float().to(self.device)     
-        data["capacity"] = torch.from_numpy(capacity).float().to(self.device) 
-        data["speed"] = torch.from_numpy(speed).float().to(self.device)       
+        data["demand"] = torch.from_numpy(demand).float().to(self.device)
+        data["capacity"] = torch.from_numpy(capacity).float().to(self.device)
+        data["speed"] = torch.from_numpy(speed).float().to(self.device)
 
         # Depot mask
         is_depot = torch.zeros((batch, num_nodes), dtype=torch.bool, device=self.device)
@@ -203,7 +196,7 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
             "num_agents": num_agents,
             "data": data,
         }
-    
+
     def get_instance(self, instance_name: str) -> Dict:
         """
         Get an instance with custom number of agents.
@@ -218,14 +211,14 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
         """
 
         if not hasattr(self, "instances_data"):
-            raise RuntimeError("No instances loaded. Call load_set_of_instances() first.")
+            raise RuntimeError(
+                "No instances loaded. Call load_set_of_instances() first."
+            )
 
         if instance_name not in self.instances_data:
             raise KeyError(f"Instance '{instance_name}' not found.")
 
         return self.instances_data[instance_name]
-
-
 
     def random_sample_instance(
         self,
@@ -242,7 +235,7 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
         max_speed: float = None,
         batch_size: Optional[torch.Size] = None,
         seed: int = None,
-        device: Optional[str] = "cpu", 
+        device: Optional[str] = "cpu",
     ) -> Dict:
         """
         Generate a random HCVRP instance with specified parameters.
@@ -286,7 +279,7 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
 
         if num_nodes is None:
             self.num_nodes = 40
-        else:            
+        else:
             self.num_nodes = num_nodes
 
         if min_nodes is None:
@@ -295,12 +288,12 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
             self.min_nodes = min_nodes
         if max_nodes is None:
             self.max_nodes = 1.0
-        else:            
+        else:
             self.max_nodes = max_nodes
-            
+
         if min_demand is None:
             self.min_demand = 1
-        else:            
+        else:
             self.min_demand = min_demand
         if max_demand is None:
             self.max_demand = 10
@@ -345,7 +338,10 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
         data["demand"] = demand
 
         # Capacity
-        capacity = torch.rand((batch, num_agents)) * (max_capacity - min_capacity) + min_capacity
+        capacity = (
+            torch.rand((batch, num_agents)) * (max_capacity - min_capacity)
+            + min_capacity
+        )
         data["capacity"] = capacity
 
         # Speed
@@ -382,24 +378,24 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
         return inst[torch.randint(0, len(inst), (1,)).item()]
 
     def sample_instance(
-                        self,
-                        num_agents: int = None,
-                        num_nodes: int = None,
-                        min_nodes: float = None,
-                        max_nodes: float = None,
-                        min_demand: int = None,
-                        max_demand: int = None,
-                        min_capacity: float = None,
-                        max_capacity: float = None,
-                        min_speed: float = None,
-                        max_speed: float = None,
-                        instance_name: str = None,
-                        sample_type: str = "random",
-                        batch_size: Optional[torch.Size] = None,
-                        seed: int = None,
-                        n_augment: Optional[int] = None,
-                        device: Optional[str] = "cpu",
-                    ) -> Dict:
+        self,
+        num_agents: int = None,
+        num_nodes: int = None,
+        min_nodes: float = None,
+        max_nodes: float = None,
+        min_demand: int = None,
+        max_demand: int = None,
+        min_capacity: float = None,
+        max_capacity: float = None,
+        min_speed: float = None,
+        max_speed: float = None,
+        instance_name: str = None,
+        sample_type: str = "random",
+        batch_size: Optional[torch.Size] = None,
+        seed: int = None,
+        n_augment: Optional[int] = None,
+        device: Optional[str] = "cpu",
+    ) -> Dict:
         """
         Sample or generate an HCVRP instance.
 
@@ -454,7 +450,6 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
         else:
             instance_name = instance_name
 
-
         if num_agents is None:
             self.num_agents = 3
         else:
@@ -462,9 +457,8 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
 
         if num_nodes is None:
             self.num_nodes = 40
-        else:            
+        else:
             self.num_nodes = num_nodes
-
 
         if min_nodes is None:
             self.min_nodes = 0.0
@@ -498,7 +492,7 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
 
         if min_speed is None:
             self.min_speed = 0.5
-        else:            
+        else:
             self.min_speed = min_speed
 
         if max_speed is None:
@@ -512,23 +506,22 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
         if device is not None:
             self.device = device
 
-
         if sample_type == "random":
             instance = self.random_sample_instance(
-                                    num_agents=self.num_agents,
-                                    num_nodes=self.num_nodes,
-                                    min_nodes=self.min_nodes,
-                                    max_nodes=self.max_nodes,
-                                    min_demand=self.min_demand,
-                                    max_demand=self.max_demand,
-                                    min_capacity=self.min_capacity,
-                                    max_capacity=self.max_capacity,
-                                    min_speed=self.min_speed,
-                                    max_speed=self.max_speed,
-                                    batch_size=self.batch_size,
-                                    seed=seed,
-                                    device=device,
-                                )
+                num_agents=self.num_agents,
+                num_nodes=self.num_nodes,
+                min_nodes=self.min_nodes,
+                max_nodes=self.max_nodes,
+                min_demand=self.min_demand,
+                max_demand=self.max_demand,
+                min_capacity=self.min_capacity,
+                max_capacity=self.max_capacity,
+                min_speed=self.min_speed,
+                max_speed=self.max_speed,
+                batch_size=self.batch_size,
+                seed=seed,
+                device=device,
+            )
 
         elif sample_type == "saved":
             instance = self.get_instance(instance_name, num_agents=num_agents)

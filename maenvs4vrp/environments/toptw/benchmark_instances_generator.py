@@ -8,12 +8,14 @@ from typing import Dict, Optional
 from maenvs4vrp.core.env_generator_builder import InstanceBuilder
 
 
-BENCHMARK_INSTANCES_PATH = 'toptw/data/benchmark'
+BENCHMARK_INSTANCES_PATH = "toptw/data/benchmark"
+
 
 class BenchmarkInstanceGenerator(InstanceBuilder):
     """
     TOPTW benchmark instance generation class.
     """
+
     @classmethod
     def get_list_of_benchmark_instances(cls):
         """
@@ -27,19 +29,33 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
         """
         base_dir = path.dirname(path.dirname(path.abspath(__file__)))
 
-        return {'Solomon': [s.split('.')[0] for s in os.listdir(path.join(base_dir, BENCHMARK_INSTANCES_PATH, 'Solomon'))],
-                'Cordeau':[s.split('.')[0] for s in os.listdir(path.join(base_dir, BENCHMARK_INSTANCES_PATH, 'Cordeau'))]}
+        return {
+            "Solomon": [
+                s.split(".")[0]
+                for s in os.listdir(
+                    path.join(base_dir, BENCHMARK_INSTANCES_PATH, "Solomon")
+                )
+            ],
+            "Cordeau": [
+                s.split(".")[0]
+                for s in os.listdir(
+                    path.join(base_dir, BENCHMARK_INSTANCES_PATH, "Cordeau")
+                )
+            ],
+        }
 
-    def __init__(self, 
-                 instance_type:str='Solomon', 
-                 set_of_instances:set=None, 
-                 device: Optional[str] = "cpu",
-                 batch_size: Optional[torch.Size] = None,
-                 seed:int=None) -> None:
+    def __init__(
+        self,
+        instance_type: str = "Solomon",
+        set_of_instances: set = None,
+        device: Optional[str] = "cpu",
+        batch_size: Optional[torch.Size] = None,
+        seed: int = None,
+    ) -> None:
         """
         Constructor. Create an instance space of one or several sets of data.
-        
-        Args:       
+
+        Args:
             instance_type(str): Instance type. Can be "Solomon" or "Homberger". Defaults to "Solomon".
             set_of_instances(set): Set of instances file names. Defaults to None.
             device(str, optional): Type of processing. It can be "cpu" or "gpu". Defaults to "cpu".
@@ -63,22 +79,23 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
             batch_size = [batch_size] if isinstance(batch_size, int) else batch_size
         self.batch_size = torch.Size(batch_size)
 
-        assert instance_type in ["Solomon", "Cordeau"], f"instance unknown type"
-        assert len(set_of_instances)>0, f"set_of_instances has to have at least one instance!"
+        assert instance_type in ["Solomon", "Cordeau"], "instance unknown type"
+        assert (
+            len(set_of_instances) > 0
+        ), "set_of_instances has to have at least one instance!"
         if set_of_instances:
             self.instance_type = instance_type
             self.set_of_instances = set_of_instances
             self.load_set_of_instances()
 
-
-    def read_instance_data(self, instance_name:str)-> Dict:
+    def read_instance_data(self, instance_name: str) -> Dict:
         """
         Read instance data from file.
 
         Args:
             instance_name(str): Instance file name.
 
-        Returns: 
+        Returns:
             Dict: Instance data.
         """
 
@@ -86,9 +103,9 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
 
         path_to_file = path.join(base_dir, BENCHMARK_INSTANCES_PATH, self.instance_type)
 
-        benchmark_file = '{path_to_benchmark_instances}/{instance}.txt' \
-                        .format(path_to_benchmark_instances=path_to_file,
-                                instance=instance_name)
+        benchmark_file = "{path_to_benchmark_instances}/{instance}.txt".format(
+            path_to_benchmark_instances=path_to_file, instance=instance_name
+        )
 
         dfile = open(benchmark_file)
 
@@ -97,9 +114,9 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
 
         instance = self.parse_instance_data(data, instance_name)
 
-        return instance    
-    
-    def parse_instance_data(self, instance_data: list, instance_name:str) -> Dict:
+        return instance
+
+    def parse_instance_data(self, instance_data: list, instance_name: str) -> Dict:
         """
         Parse instance data list into a dictionary.
 
@@ -112,7 +129,7 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
         instance_data_clean = self.eliminate_extra_columns(instance_data)
 
         instance = dict()
-        instance['name'] = instance_name
+        instance["name"] = instance_name
 
         coords = []
         profits = []
@@ -125,49 +142,83 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
             time_windows.append([float(data[8]), float(data[9])])
             service_time.append(float(data[3]))
 
-        instance['num_agents'] = len(coords) 
-        instance['num_nodes'] = len(coords) 
+        instance["num_agents"] = len(coords)
+        instance["num_nodes"] = len(coords)
 
         data = TensorDict({}, batch_size=self.batch_size, device=self.device)
 
         capacity = float(instance_data[4][1])
 
         depot_idx = 0
-        data['depot_idx'] = depot_idx * torch.ones((*self.batch_size, 1), dtype = torch.int64, device=self.device)
-        data['coords'] = torch.tensor(coords, dtype = torch.float, device=self.device).unsqueeze(0)
-        data['profits'] = torch.tensor(profits, dtype = torch.float, device=self.device).unsqueeze(0)
-        time_windows = torch.tensor(time_windows, dtype = torch.float, device=self.device).unsqueeze(0)
-        data['tw_low'] =  time_windows[:, :, 0].clone()
-        data['tw_high'] = time_windows[:, :, 1].clone()
+        data["depot_idx"] = depot_idx * torch.ones(
+            (*self.batch_size, 1), dtype=torch.int64, device=self.device
+        )
+        data["coords"] = torch.tensor(
+            coords, dtype=torch.float, device=self.device
+        ).unsqueeze(0)
+        data["profits"] = torch.tensor(
+            profits, dtype=torch.float, device=self.device
+        ).unsqueeze(0)
+        time_windows = torch.tensor(
+            time_windows, dtype=torch.float, device=self.device
+        ).unsqueeze(0)
+        data["tw_low"] = time_windows[:, :, 0].clone()
+        data["tw_high"] = time_windows[:, :, 1].clone()
 
-        data['service_time'] = torch.tensor(service_time, dtype = torch.float, device=self.device).unsqueeze(0)
-        data['start_time'] = time_windows[:, :, 0].gather(1, torch.zeros((*self.batch_size, 1), 
-                                                                          dtype=torch.int64, device=self.device)).squeeze(-1)
-        data['end_time'] = time_windows[:, :, 1].gather(1, torch.zeros((*self.batch_size, 1), 
-                                                                        dtype=torch.int64, device=self.device)).squeeze(-1)
-        data['speed'] = torch.ones((*self.batch_size, 1), dtype=torch.float, device=self.device)
+        data["service_time"] = torch.tensor(
+            service_time, dtype=torch.float, device=self.device
+        ).unsqueeze(0)
+        data["start_time"] = (
+            time_windows[:, :, 0]
+            .gather(
+                1,
+                torch.zeros(
+                    (*self.batch_size, 1), dtype=torch.int64, device=self.device
+                ),
+            )
+            .squeeze(-1)
+        )
+        data["end_time"] = (
+            time_windows[:, :, 1]
+            .gather(
+                1,
+                torch.zeros(
+                    (*self.batch_size, 1), dtype=torch.int64, device=self.device
+                ),
+            )
+            .squeeze(-1)
+        )
+        data["speed"] = torch.ones(
+            (*self.batch_size, 1), dtype=torch.float, device=self.device
+        )
 
-        data['is_depot'] = torch.zeros((*self.batch_size, instance['num_nodes']), dtype=torch.bool, device=self.device)
-        data['is_depot'][:, depot_idx] = True
-        data['capacity'] = capacity * torch.ones((*self.batch_size, 1), dtype = torch.float, device=self.device)
+        data["is_depot"] = torch.zeros(
+            (*self.batch_size, instance["num_nodes"]),
+            dtype=torch.bool,
+            device=self.device,
+        )
+        data["is_depot"][:, depot_idx] = True
+        data["capacity"] = capacity * torch.ones(
+            (*self.batch_size, 1), dtype=torch.float, device=self.device
+        )
 
-        instance['data'] = data
+        instance["data"] = data
 
-        if self.instance_type in ['Solomon']:
-            instance['n_digits'] = 10.0
-        elif self.instance_type in ['Cordeau']:
-            instance['n_digits'] = 100.0
+        if self.instance_type in ["Solomon"]:
+            instance["n_digits"] = 10.0
+        elif self.instance_type in ["Cordeau"]:
+            instance["n_digits"] = 100.0
 
         return instance
 
-    def eliminate_extra_columns(self, instance_data:list) -> list:
+    def eliminate_extra_columns(self, instance_data: list) -> list:
         """
         Cordeau instances have extra columns in some rows. This function eliminates the extra columns.
         This will also correct position of total time in row 0 for all instances.
-        
+
         Args:
             instance_data(list): Instance data.
-        
+
         Returns:
             list: List with eliminated rows.
         """
@@ -175,11 +226,12 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
         N_RELEVANT_FIRST_COLUMNS = 8
         N_RELEVANT_LAST_COLUMNS = 2
 
-        return [s[:N_RELEVANT_FIRST_COLUMNS]+s[-N_RELEVANT_LAST_COLUMNS:] \
-                for s in instance_data[DATA_INIT_ROW :]]
-    
+        return [
+            s[:N_RELEVANT_FIRST_COLUMNS] + s[-N_RELEVANT_LAST_COLUMNS:]
+            for s in instance_data[DATA_INIT_ROW:]
+        ]
 
-    def get_instance(self, instance_name:str, num_agents:int=None) -> Dict:
+    def get_instance(self, instance_name: str, num_agents: int = None) -> Dict:
         """
         Get an instance with custom number of agents.
 
@@ -193,16 +245,16 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
         instance = self.instances_data.get(instance_name)
 
         if num_agents is not None:
-            assert num_agents>0, f"number of agents must be grater them 0!"
-            num_agents = min(instance['num_agents'], num_agents)
-            instance['num_agents'] = num_agents
+            assert num_agents > 0, "number of agents must be grater them 0!"
+            num_agents = min(instance["num_agents"], num_agents)
+            instance["num_agents"] = num_agents
 
         return instance
 
-    def load_set_of_instances(self, set_of_instances:set=None):
+    def load_set_of_instances(self, set_of_instances: set = None):
         """
         Load every instance on set_of_instances set.
-        
+
         Args:
             set_of_instances(set): Set of instances file names. Defaults to None.
 
@@ -214,16 +266,17 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
         self.instances_data = dict()
         for instance_name in self.set_of_instances:
             instance = self.read_instance_data(instance_name)
-            self.instances_data[instance_name] = instance            
+            self.instances_data[instance_name] = instance
 
-
-    def random_sample_instance(self, 
-                               instance_name:str=None,
-                               num_agents:int=None, 
-                               num_nodes:int=None, 
-                               speed:float=None,
-                               seed:int=None,
-                               device:Optional[str]="cpu")-> Dict:
+    def random_sample_instance(
+        self,
+        instance_name: str = None,
+        num_agents: int = None,
+        num_nodes: int = None,
+        speed: float = None,
+        seed: int = None,
+        device: Optional[str] = "cpu",
+    ) -> Dict:
         """
         Sample one instance from instance space, randomly adjusting the nodes.
 
@@ -243,40 +296,46 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
         new_instance = dict()
         instance = self.get_instance(instance_name, num_agents)
 
-        new_instance['num_agents'] = instance['num_agents']
+        new_instance["num_agents"] = instance["num_agents"]
 
         if num_nodes is not None:
-            num_nodes = min(num_nodes, instance['num_nodes'])
-            new_instance['num_nodes'] = num_nodes
+            num_nodes = min(num_nodes, instance["num_nodes"])
+            new_instance["num_nodes"] = num_nodes
         else:
-            new_instance['num_nodes'] = instance['num_nodes']
+            new_instance["num_nodes"] = instance["num_nodes"]
 
-        new_instance['name'] = instance['name'] + '_samp'
+        new_instance["name"] = instance["name"] + "_samp"
 
-        new_instance['n_digits'] = instance['n_digits'] 
+        new_instance["n_digits"] = instance["n_digits"]
 
-        data = instance['data']
+        data = instance["data"]
 
-        idxs = torch.arange(0, instance['num_nodes'], device=self.device).unsqueeze(0)
-        index = torch.cat([idxs[data['is_depot']], idxs[~data['is_depot']][torch.randperm(instance['num_nodes']-1)]], dim=0)[:new_instance['num_nodes']]
+        idxs = torch.arange(0, instance["num_nodes"], device=self.device).unsqueeze(0)
+        index = torch.cat(
+            [
+                idxs[data["is_depot"]],
+                idxs[~data["is_depot"]][torch.randperm(instance["num_nodes"] - 1)],
+            ],
+            dim=0,
+        )[: new_instance["num_nodes"]]
 
         new_data = TensorDict({}, batch_size=self.batch_size, device=self.device)
 
-        new_data['depot_idx'] = data['depot_idx']
-        new_data['coords'] = data['coords'][:, index]
-        new_data['profits'] = data['profits'][:,index]
-        new_data['tw_low'] = data['tw_low'][:,index]
-        new_data['tw_high'] = data['tw_high'][:,index]
-        new_data['service_time'] = data['service_time'][:,index]
-        new_data['start_time'] = data['start_time']
-        new_data['end_time'] = data['end_time']
-        new_data['is_depot'] = data['is_depot'][:, index]
-        new_data['speed'] = data['speed']
+        new_data["depot_idx"] = data["depot_idx"]
+        new_data["coords"] = data["coords"][:, index]
+        new_data["profits"] = data["profits"][:, index]
+        new_data["tw_low"] = data["tw_low"][:, index]
+        new_data["tw_high"] = data["tw_high"][:, index]
+        new_data["service_time"] = data["service_time"][:, index]
+        new_data["start_time"] = data["start_time"]
+        new_data["end_time"] = data["end_time"]
+        new_data["is_depot"] = data["is_depot"][:, index]
+        new_data["speed"] = data["speed"]
 
-        new_instance['data'] = new_data
+        new_instance["data"] = new_data
         return new_instance
 
-    def sample_name_from_set(self, seed:int=None)-> str:
+    def sample_name_from_set(self, seed: int = None) -> str:
         """
         Sample one instance from instance set.
 
@@ -288,21 +347,28 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
         """
         if seed is not None:
             self._set_seed(seed)
-        assert len(self.set_of_instances)>0, f"set_of_instances has to have at least one instance!"
+        assert (
+            len(self.set_of_instances) > 0
+        ), "set_of_instances has to have at least one instance!"
 
-        return list(self.set_of_instances)[torch.randint(0, len(self.set_of_instances), (1,)).item()]
+        return list(self.set_of_instances)[
+            torch.randint(0, len(self.set_of_instances), (1,)).item()
+        ]
 
-    def sample_instance(self, num_agents:int=None, 
-                        num_nodes:int=None, 
-                        service_times:float=None, 
-                        speed:float=None,
-                        profits:str=None,
-                        instance_name:str=None, 
-                        sample_type:str='random',
-                        batch_size: Optional[torch.Size] = None,
-                        n_augment: Optional[int] = None,
-                        seed:int=None,
-                        device:Optional[str]="cpu")-> Dict:
+    def sample_instance(
+        self,
+        num_agents: int = None,
+        num_nodes: int = None,
+        service_times: float = None,
+        speed: float = None,
+        profits: str = None,
+        instance_name: str = None,
+        sample_type: str = "random",
+        batch_size: Optional[torch.Size] = None,
+        n_augment: Optional[int] = None,
+        seed: int = None,
+        device: Optional[str] = "cpu",
+    ) -> Dict:
         """
         Sample one instance from instance space.
 
@@ -328,25 +394,28 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
         else:
             self.speed = speed
 
-        if instance_name==None:
+        if instance_name == None:
             instance_name = self.sample_name_from_set(seed=seed)
         else:
             instance_name = instance_name
 
-        if sample_type=='random':
-            instance = self.random_sample_instance(instance_name=instance_name,
-                                                   num_agents=num_agents, 
-                                                   num_nodes=num_nodes, 
-                                                   speed=self.speed,
-                                                   seed=seed,
-                                                   device=device)
+        if sample_type == "random":
+            instance = self.random_sample_instance(
+                instance_name=instance_name,
+                num_agents=num_agents,
+                num_nodes=num_nodes,
+                speed=self.speed,
+                seed=seed,
+                device=device,
+            )
         else:
             instance = self.get_instance(instance_name, num_agents=num_agents)
 
         return instance
 
 
-if __name__ == '__main__':
-
-    generator = BenchmarkInstanceGenerator(instance_type='Solomon', set_of_instances={'c101'})
+if __name__ == "__main__":
+    generator = BenchmarkInstanceGenerator(
+        instance_type="Solomon", set_of_instances={"c101"}
+    )
     generator.sample_instance(num_agents=3, num_nodes=8, seed=1)

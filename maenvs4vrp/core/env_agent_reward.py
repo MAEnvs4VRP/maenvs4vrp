@@ -1,7 +1,5 @@
-
 class RewardFn:
-    """Agent rewards base class.
-    """
+    """Agent rewards base class."""
 
     def __init__(self):
         """
@@ -39,4 +37,3 @@ class RewardFn:
         """
 
         raise NotImplementedError()
-    

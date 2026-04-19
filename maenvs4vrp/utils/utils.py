@@ -3,6 +3,7 @@ from tensordict import TensorDict
 from torch import Tensor
 from typing import Any, Optional, Tuple, List, Dict
 
+
 def data_equivalence(data_1, data_2, exact: bool = False) -> bool:
     # adapted from https://gymnasium.farama.org/main/_modules/gymnasium/utils/env_checker/
     """Assert equality between data 1 and 2, i.e observations, actions, info.
@@ -56,7 +57,9 @@ def get_solution(
       - agent_depot: {agent_id: depot_node_idx or None}
       - depot_agents: {depot_node_idx: [agent_ids]}
     """
-    assert hasattr(env, "td_state"), "Environment has no td_state. Did you call env.reset()?"
+    assert hasattr(
+        env, "td_state"
+    ), "Environment has no td_state. Did you call env.reset()?"
     td = env.td_state
 
     # Determine batch size (B)
@@ -64,7 +67,11 @@ def get_solution(
         B = int(td["coords"].shape[0])
     else:
         bs = getattr(env, "batch_size", torch.Size([1]))
-        B = int(bs.numel() if isinstance(bs, torch.Size) and len(bs) > 1 else (bs[0] if isinstance(bs, torch.Size) and len(bs) == 1 else 1))
+        B = int(
+            bs.numel()
+            if isinstance(bs, torch.Size) and len(bs) > 1
+            else (bs[0] if isinstance(bs, torch.Size) and len(bs) == 1 else 1)
+        )
 
     # Extract event stream if present
     actions: Optional[torch.Tensor] = None
@@ -84,7 +91,9 @@ def get_solution(
             T = int(actions.shape[-1])
 
     # Depot information (mask and/or index)
-    is_depot_full: Optional[torch.Tensor] = td["is_depot"] if "is_depot" in td.keys() else None  # [B, N] bool
+    is_depot_full: Optional[torch.Tensor] = (
+        td["is_depot"] if "is_depot" in td.keys() else None
+    )  # [B, N] bool
     depot_idx_tensor: Optional[torch.Tensor] = None
     if "depot_idx" in td.keys():
         dep_idx = td["depot_idx"]
@@ -114,17 +123,22 @@ def get_solution(
             # synthesize a minimal mask if we know coords
             if is_dep_b is None and "coords" in td.keys():
                 N = int(td["coords"].shape[1])
-                device = actions.device if isinstance(actions, torch.Tensor) else td.device
+                device = (
+                    actions.device if isinstance(actions, torch.Tensor) else td.device
+                )
                 is_dep_b = torch.zeros(N, dtype=torch.bool, device=device)
                 if 0 <= depot_single < N:
                     is_dep_b[depot_single] = True
 
         # Helper: check depot node
         if is_dep_b is None:
+
             def is_depot_node(node_idx: int) -> bool:
                 return depot_single is not None and node_idx == depot_single
+
         else:
             dep_mask_np = is_dep_b.detach().cpu()
+
             def is_depot_node(node_idx: int) -> bool:
                 if 0 <= node_idx < dep_mask_np.numel():
                     return bool(dep_mask_np[node_idx].item())
@@ -135,13 +149,19 @@ def get_solution(
         num_agents_env = int(getattr(env, "num_agents", 1))
         if "agents" in td.keys() and "depot_idx" in td["agents"].keys():
             dep_idx_per_agent = td["agents"]["depot_idx"][b]
-            num_agents_here = int(dep_idx_per_agent.shape[0]) if dep_idx_per_agent.ndim >= 1 else num_agents_env
+            num_agents_here = (
+                int(dep_idx_per_agent.shape[0])
+                if dep_idx_per_agent.ndim >= 1
+                else num_agents_env
+            )
             for a in range(num_agents_here):
                 agent_depot_map[a] = int(dep_idx_per_agent[a].item())
         else:
             # Fallbacks
             for a in range(num_agents_env):
-                agent_depot_map[a] = int(depot_single) if depot_single is not None else None
+                agent_depot_map[a] = (
+                    int(depot_single) if depot_single is not None else None
+                )
 
         # Inverse mapping: depot -> [agents]
         depot_agents: Dict[int, List[int]] = {}
@@ -155,7 +175,9 @@ def get_solution(
             if len(depots_b) == 0 and depot_single is not None:
                 depots_b = [int(depot_single)]
             tours: Dict[int, List[List[int]]] = {a: [] for a in range(num_agents_here)}
-            edges: Dict[int, List[Tuple[int, int]]] = {a: [] for a in range(num_agents_here)}
+            edges: Dict[int, List[Tuple[int, int]]] = {
+                a: [] for a in range(num_agents_here)
+            }
             return {
                 "depot": depot_single,
                 "depots": depots_b,
@@ -192,7 +214,10 @@ def get_solution(
             if is_depot_node(node):
                 # Close current tour if it has visits beyond initial depot (when include_depot)
                 if len(current[agent_id]) > (1 if include_depot else 0):
-                    if include_depot and (len(current[agent_id]) == 0 or not is_depot_node(current[agent_id][-1])):
+                    if include_depot and (
+                        len(current[agent_id]) == 0
+                        or not is_depot_node(current[agent_id][-1])
+                    ):
                         current[agent_id].append(node)
                     tours[agent_id].append(current[agent_id])
                 # Start next tour

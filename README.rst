@@ -15,9 +15,9 @@ MAEnvs4VRP is a library made up of multi-agent environments for simulating class
 What's NEW in v0.2!
 =====================
 
-- Added six new environments: **DVRPTW**, **DSVRPTW**, **MTVRP**, **MTDVRP**, **GMTVRP**, and **GMTDVRP**  
-- Introduced three new hands-on Jupyter notebook tutorials  
-- Integrated plotting tools for visualization and analysis 
+- Added six new environments: **DVRPTW**, **DSVRPTW**, **MTVRP**, **MTDVRP**, **GMTVRP**, and **GMTDVRP**
+- Introduced three new hands-on Jupyter notebook tutorials
+- Integrated plotting tools for visualization and analysis
 - Now every environment includes a ``check_solution_validity()`` method
 
 Environments
@@ -217,13 +217,13 @@ To credit the library in your publications, use this citation:
 
 Contributing
 ============
-We welcome contributions to **MAEnvs4VRP**!  
-If you’d like to use this library in your academic research/industry projects, or if you have suggestions, feature requests, or any feedback, we’d be happy to hear from you.  
+We welcome contributions to **MAEnvs4VRP**!
+If you’d like to use this library in your academic research/industry projects, or if you have suggestions, feature requests, or any feedback, we’d be happy to hear from you.
 
 Feel free to `open an issue <https://github.com/ricgama/maenvs4vrp/issues>`_ or submit a `pull request <https://github.com/ricgama/maenvs4vrp/pulls>`_. If you would like to contribute, please check out our contribution guidelines `here <https://github.com/ricgama/maenvs4vrp/blob/pre_commit_setup/.github/CONTRIBUTING.rst>`_. We welcome and look forward to all contributions to MAEnvs4vrp
 
 
 Acknowledgements
 =================
-MAEnvs4VRP has been inspired by, and benefits from, the ideas and tooling of the broader open-source community. In particular, we would like to thank `PettingZoo <https://www.pettingzoo.ml/>`_, 
+MAEnvs4VRP has been inspired by, and benefits from, the ideas and tooling of the broader open-source community. In particular, we would like to thank `PettingZoo <https://www.pettingzoo.ml/>`_,
 `Flatland <https://github.com/flatland-association/flatland-rl/>`_, `MARDAM <https://gitlab.inria.fr/gbono/mardam>`_, `RL4CO <https://rl4co.readthedocs.io/en/latest//>`_, `RoutFinder <https://github.com/ai4co/routefinder/tree/main//>`_, `PyVRP <https://pyvrp.org//>`_ .

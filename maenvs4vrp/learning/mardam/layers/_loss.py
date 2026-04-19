@@ -3,7 +3,10 @@ import torch.nn.functional as F
 
 from itertools import repeat
 
-def reinforce_loss(logprobs, rewards, baseline = None, weights = None, discount = 1.0, reduction = 'mean'):
+
+def reinforce_loss(
+    logprobs, rewards, baseline=None, weights=None, discount=1.0, reduction="mean"
+):
     r"""
     :param logprobs:  Iterable of length :math:`L` on tensors of size :math:`N \times 1`
     :param rewards:   Iterable of length :math:`L` on tensors of size :math:`N \times 1`
@@ -18,13 +21,13 @@ def reinforce_loss(logprobs, rewards, baseline = None, weights = None, discount 
     """
     if weights is None:
         weights = repeat(1.0)
-        
+
     if isinstance(rewards, torch.Tensor):
         if baseline is None:
             baseline = torch.zeros_like(rewards)
 
-        loss = torch.stack([-logp * w for logp,w in zip(logprobs, weights)]).sum(dim = 0)
-        loss *= (rewards - baseline.detach())
+        loss = torch.stack([-logp * w for logp, w in zip(logprobs, weights)]).sum(dim=0)
+        loss *= rewards - baseline.detach()
 
         if baseline.requires_grad:
             loss += F.smooth_l1_loss(baseline, rewards)
@@ -43,23 +46,31 @@ def reinforce_loss(logprobs, rewards, baseline = None, weights = None, discount 
         loss = []
         bl_loss = []
         for val, logp, bl, w in zip(vals, logprobs, baseline, weights):
-            loss.append( -logp * (val - bl.detach()) * w )
+            loss.append(-logp * (val - bl.detach()) * w)
             if bl.requires_grad:
-                bl_loss.append( F.smooth_l1_loss(bl, val) )
-        loss = torch.stack(loss).sum(dim = 0)
+                bl_loss.append(F.smooth_l1_loss(bl, val))
+        loss = torch.stack(loss).sum(dim=0)
 
         if bl_loss:
-            loss += torch.stack(bl_loss).sum(dim = 0)
+            loss += torch.stack(bl_loss).sum(dim=0)
 
-    if reduction == 'none':
+    if reduction == "none":
         return loss
-    elif reduction == 'sum':
+    elif reduction == "sum":
         return loss.sum()
-    else: # reduction == 'mean'
+    else:  # reduction == 'mean'
         return loss.mean()
-    
 
-def reinforce_mask_loss(logprobs, rewards, baseline = None,  step_mask=None, weights = None, discount = 1.0, reduction = 'mean'):
+
+def reinforce_mask_loss(
+    logprobs,
+    rewards,
+    baseline=None,
+    step_mask=None,
+    weights=None,
+    discount=1.0,
+    reduction="mean",
+):
     r"""
     :param logprobs:  Iterable of length :math:`L` on tensors of size :math:`N \times 1`
     :param rewards:   Iterable of length :math:`L` on tensors of size :math:`N \times 1`
@@ -76,13 +87,15 @@ def reinforce_mask_loss(logprobs, rewards, baseline = None,  step_mask=None, wei
         weights = repeat(1.0)
 
     step_mask = torch.stack(step_mask)
-        
+
     if isinstance(rewards, torch.Tensor):
         if baseline is None:
             baseline = torch.zeros_like(rewards)
 
-        loss = torch.stack([-logp * w for logp,w in zip(logprobs, weights)])#.sum(dim = 0)
-        loss *= (rewards - baseline.detach())
+        loss = torch.stack(
+            [-logp * w for logp, w in zip(logprobs, weights)]
+        )  # .sum(dim = 0)
+        loss *= rewards - baseline.detach()
 
         if baseline.requires_grad:
             loss += F.smooth_l1_loss(baseline, rewards)
@@ -101,18 +114,19 @@ def reinforce_mask_loss(logprobs, rewards, baseline = None,  step_mask=None, wei
         loss = []
         bl_loss = []
         for val, logp, bl, w in zip(vals, logprobs, baseline, weights):
-            loss.append( -logp * (val - bl.detach()) * w )
+            loss.append(-logp * (val - bl.detach()) * w)
             if bl.requires_grad:
-                bl_loss.append( F.smooth_l1_loss(bl, val, reduction='none') )
-        loss = torch.stack(loss)#.sum(dim = 0)
+                bl_loss.append(F.smooth_l1_loss(bl, val, reduction="none"))
+        loss = torch.stack(loss)  # .sum(dim = 0)
 
         if bl_loss:
-            loss += torch.stack(bl_loss)#.sum(dim = 0)
+            loss += torch.stack(bl_loss)  # .sum(dim = 0)
 
-    if reduction == 'none':
+    if reduction == "none":
         return loss
-    elif reduction == 'sum':
+    elif reduction == "sum":
         return loss.sum()
-    else: # reduction == 'mean'
-        return (loss*step_mask).sum(dim=0).mean() #loss[step_mask].sum() / torch.sum(step_mask)
-    
+    else:  # reduction == 'mean'
+        return (
+            (loss * step_mask).sum(dim=0).mean()
+        )  # loss[step_mask].sum() / torch.sum(step_mask)

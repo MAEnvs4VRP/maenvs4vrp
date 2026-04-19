@@ -5,43 +5,42 @@ Training script for madyam model
 """
 
 import sys
-sys.path.insert(0, '../')
+
+sys.path.insert(0, "../")
 
 import argparse
-from distutils.util import strtobool
 
-from tqdm import tqdm, trange
+from tqdm import trange
 from itertools import chain
-import numpy as np
 
 import time
 import random
 import os.path as osp
 import os
 import torch
-from tensordict import TensorDict
 
 import torch.nn as nn
 from torch.utils.tensorboard import SummaryWriter
 from torch.optim import Adam
-import torch.nn.functional as F
 
 import importlib
 
 from maenvs4vrp.learning.madyam.layers import reinforce_loss
 from maenvs4vrp.learning.madyam.policy_net_ma_ac import Learner
 
+
 def save_model_state_dict(save_path, model_policy):
-    # save the policy state dict 
+    # save the policy state dict
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     state_dict = model_policy.to("cpu").state_dict()
     torch.save(state_dict, save_path)
-    
+
 
 def set_random_seed(seed, torch_deterministic):
     random.seed(seed)
     torch.manual_seed(seed)
     torch.backends.cudnn.deterministic = torch_deterministic
+
 
 def train_epoch(args, env, learner, optim, ep, writer):
     learner.train()
@@ -51,54 +50,58 @@ def train_epoch(args, env, learner, optim, ep, writer):
     ep_val = 0
     ep_bl = 0
     ep_norm = 0
-    
-    with trange(args.iter_count, desc = "Ep.#{: >3d}/{: <3d}".format(ep+1, args.epoch_count)) as progress:
+
+    with trange(
+        args.iter_count, desc="Ep.#{: >3d}/{: <3d}".format(ep + 1, args.epoch_count)
+    ) as progress:
         for episode in progress:
-            
-            td = env.reset(num_agents=args.num_agents, 
-                           num_nodes=args.num_nodes, 
-                           seed=args.seed+ep*args.iter_count+episode, 
-                           sample_type='random')
-            
+            td = env.reset(
+                num_agents=args.num_agents,
+                num_nodes=args.num_nodes,
+                seed=args.seed + ep * args.iter_count + episode,
+                sample_type="random",
+            )
+
             logps = []
             step_mask = []
             entropy = []
             bl_vals = []
             rewards = []
 
-            node_stat_obs = td['observations']['node_static_obs']
+            node_stat_obs = td["observations"]["node_static_obs"]
 
             learner.policy.make_cache_(nodes_obs=node_stat_obs)
 
             while not td["done"].all():
-
                 # rollover the observation
-                node_dyn_obs = td['observations']['node_dynamic_obs']
-                action_mask = td['observations']['action_mask']
-                self_obs = td['observations']['agent_obs']
-                global_obs = td['observations']['global_obs']
-                agents_mask = td['observations']['agents_mask']
-                agents_obs = td['observations']['other_agents_obs']
+                node_dyn_obs = td["observations"]["node_dynamic_obs"]
+                action_mask = td["observations"]["action_mask"]
+                self_obs = td["observations"]["agent_obs"]
+                global_obs = td["observations"]["global_obs"]
+                agents_mask = td["observations"]["agents_mask"]
+                agents_obs = td["observations"]["other_agents_obs"]
 
                 # get action from the agent
-                action, logprobs, ent, values= learner.get_action_and_logs(nodes_obs=node_dyn_obs, 
-                                                                    self_obs=self_obs, 
-                                                                    agents_obs=agents_obs, 
-                                                                    agents_mask=agents_mask,
-                                                                    global_obs=global_obs,
-                                                                    action_mask=action_mask)
+                action, logprobs, ent, values = learner.get_action_and_logs(
+                    nodes_obs=node_dyn_obs,
+                    self_obs=self_obs,
+                    agents_obs=agents_obs,
+                    agents_mask=agents_mask,
+                    global_obs=global_obs,
+                    action_mask=action_mask,
+                )
 
-                td['action'] = action.unsqueeze(1)
+                td["action"] = action.unsqueeze(1)
                 # execute the environment and log data
                 td = env.step(td)
-                
+
                 logps.append(logprobs.unsqueeze(1))
                 entropy.append(ent.unsqueeze(1))
                 bl_vals.append(values)
-                rewards.append(td['reward'] + td['penalty'])
-                step_mask.append(~td['done'].unsqueeze(1))
-            
-            #--------------------------------------------------------            
+                rewards.append(td["reward"] + td["penalty"])
+                step_mask.append(~td["done"].unsqueeze(1))
+
+            # --------------------------------------------------------
             loss = reinforce_loss(logps, rewards, bl_vals)
 
             prob = torch.stack(logps).sum(0).exp().mean()
@@ -108,25 +111,41 @@ def train_epoch(args, env, learner, optim, ep, writer):
             optim.zero_grad()
             loss.backward()
             if args.max_grad_norm is not None:
-                grad_norm = nn.utils.clip_grad_norm_(chain.from_iterable(grp["params"] for grp in optim.param_groups),
-                        args.max_grad_norm)
+                grad_norm = nn.utils.clip_grad_norm_(
+                    chain.from_iterable(grp["params"] for grp in optim.param_groups),
+                    args.max_grad_norm,
+                )
             optim.step()
 
-            progress.set_postfix_str("l={:.4g} p={:9.4g} val={:6.4g} bl={:6.4g} |g|={:.4g}".format(
-                loss, prob, val, bl, grad_norm))
+            progress.set_postfix_str(
+                "l={:.4g} p={:9.4g} val={:6.4g} bl={:6.4g} |g|={:.4g}".format(
+                    loss, prob, val, bl, grad_norm
+                )
+            )
 
-            
-            not_visited_nodes = env.td_state['nodes']['active_nodes_mask'].sum(-1).float()-1
-            number_used_agents = env.td_state['agents']['visited_nodes'].sum(-1).gt(1).sum(-1).float() 
-            
+            not_visited_nodes = (
+                env.td_state["nodes"]["active_nodes_mask"].sum(-1).float() - 1
+            )
+            number_used_agents = (
+                env.td_state["agents"]["visited_nodes"].sum(-1).gt(1).sum(-1).float()
+            )
+
             writer.add_scalar("losses/episodic_loss", loss.item(), episode)
             writer.add_scalar("losses/episodic_prob", prob.item(), episode)
 
             writer.add_scalar("train/episodic_return", val.item(), episode)
             writer.add_scalar("train/episodic_baseline", bl.item(), episode)
 
-            writer.add_scalar("train/episodic_not_visited_nodes", not_visited_nodes.mean().item(), episode)
-            writer.add_scalar("train/episodic_number_used_agents", number_used_agents.mean().item(), episode)
+            writer.add_scalar(
+                "train/episodic_not_visited_nodes",
+                not_visited_nodes.mean().item(),
+                episode,
+            )
+            writer.add_scalar(
+                "train/episodic_number_used_agents",
+                number_used_agents.mean().item(),
+                episode,
+            )
 
             ep_loss += loss.item()
             ep_prob += prob.item()
@@ -139,122 +158,161 @@ def train_epoch(args, env, learner, optim, ep, writer):
 
     writer.add_scalar("train/epoch_return", ep_val / args.iter_count, ep)
     writer.add_scalar("train/epoch_baseline", ep_bl / args.iter_count, ep)
-              
-    return tuple(stat / args.iter_count for stat in (ep_loss, ep_prob, ep_val, ep_bl, ep_norm))
+
+    return tuple(
+        stat / args.iter_count for stat in (ep_loss, ep_prob, ep_val, ep_bl, ep_norm)
+    )
+
 
 def test_epoch(args, test_env, learner, ep, writer):
     learner.eval()
-    
+
     total_reward = []
     not_visited_nodes = []
     number_used_agents = []
-    
+
     with torch.no_grad():
-        for instance_name in test_env.inst_generator.set_of_instances:     
-        
-            td = test_env.reset(num_agents=args.num_agents, 
-                                num_nodes=args.num_nodes, 
-                                sample_type='saved', 
-                                instance_name=instance_name,
-                                seed=0)
-            
+        for instance_name in test_env.inst_generator.set_of_instances:
+            td = test_env.reset(
+                num_agents=args.num_agents,
+                num_nodes=args.num_nodes,
+                sample_type="saved",
+                instance_name=instance_name,
+                seed=0,
+            )
+
             f_reward = []
-            node_stat_obs = td['observations']['node_static_obs']
+            node_stat_obs = td["observations"]["node_static_obs"]
 
             learner.policy.make_cache_(nodes_obs=node_stat_obs)
 
             while not td["done"].all():
-                
                 # rollover the observation
-                node_dyn_obs = td['observations']['node_dynamic_obs']
-                action_mask = td['observations']['action_mask']
-                self_obs = td['observations']['agent_obs']
-                global_obs = td['observations']['global_obs']
-                agents_mask = td['observations']['agents_mask']
-                agents_obs = td['observations']['other_agents_obs']
+                node_dyn_obs = td["observations"]["node_dynamic_obs"]
+                action_mask = td["observations"]["action_mask"]
+                self_obs = td["observations"]["agent_obs"]
+                global_obs = td["observations"]["global_obs"]
+                agents_mask = td["observations"]["agents_mask"]
+                agents_obs = td["observations"]["other_agents_obs"]
 
                 # get action from the agent
-                action, _, _, _= learner.get_action_and_logs(nodes_obs=node_dyn_obs, 
-                                                                self_obs=self_obs,
-                                                                agents_obs=agents_obs, 
-                                                                agents_mask=agents_mask, 
-                                                                global_obs=global_obs,
-                                                                action_mask=action_mask, 
-                                                                deterministic=True)
+                action, _, _, _ = learner.get_action_and_logs(
+                    nodes_obs=node_dyn_obs,
+                    self_obs=self_obs,
+                    agents_obs=agents_obs,
+                    agents_mask=agents_mask,
+                    global_obs=global_obs,
+                    action_mask=action_mask,
+                    deterministic=True,
+                )
 
                 # execute the environment and log data
-                td['action'] = action.unsqueeze(1)
-                td= test_env.step(td)
+                td["action"] = action.unsqueeze(1)
+                td = test_env.step(td)
 
-                f_reward.append(td['reward'] + td['penalty'])
+                f_reward.append(td["reward"] + td["penalty"])
 
             total_reward.append(torch.cat(f_reward, dim=1).sum(-1))
-            not_visited_nodes.append(test_env.td_state['nodes']['active_nodes_mask'].sum(-1).float()-1)
-            number_used_agents.append(test_env.td_state['agents']['visited_nodes'].sum(-1).gt(1).sum(-1).float() )
+            not_visited_nodes.append(
+                test_env.td_state["nodes"]["active_nodes_mask"].sum(-1).float() - 1
+            )
+            number_used_agents.append(
+                test_env.td_state["agents"]["visited_nodes"]
+                .sum(-1)
+                .gt(1)
+                .sum(-1)
+                .float()
+            )
 
-        total_reward = torch.cat(total_reward).mean() 
-        not_visited_nodes = torch.cat(not_visited_nodes).mean() 
+        total_reward = torch.cat(total_reward).mean()
+        not_visited_nodes = torch.cat(not_visited_nodes).mean()
         number_used_agents = torch.cat(number_used_agents).mean()
 
         writer.add_scalar("eval/episodic_return", total_reward, ep)
         writer.add_scalar("eval/episodic_not_visited_nodes", not_visited_nodes, ep)
         writer.add_scalar("eval/episodic_number_used_agents", number_used_agents, ep)
-    
+
     print("Reward on test dataset: {:5.2f}".format(total_reward))
     return total_reward, not_visited_nodes, number_used_agents
 
+
 def train(args, writer):
+    """ENV SETUP"""
 
-    """ ENV SETUP """
+    if args.selection == "rand":
+        env_agent_selector_module_name = (
+            f"maenvs4vrp.environments.{args.vrp_env}.env_agent_selector"
+        )
+        env_agent_selector = importlib.import_module(
+            env_agent_selector_module_name
+        ).RandomSelector()
+    elif args.selection == "single":
+        env_agent_selector_module_name = (
+            f"maenvs4vrp.environments.{args.vrp_env}.env_agent_selector"
+        )
+        env_agent_selector = importlib.import_module(
+            env_agent_selector_module_name
+        ).AgentSelector()
+    elif args.selection == "stime":
+        env_agent_selector_module_name = (
+            f"maenvs4vrp.environments.{args.vrp_env}.env_agent_selector"
+        )
+        env_agent_selector = importlib.import_module(
+            env_agent_selector_module_name
+        ).SmallestTimeAgentSelector()
 
-    if args.selection == 'rand':
-        env_agent_selector_module_name = f'maenvs4vrp.environments.{args.vrp_env}.env_agent_selector'
-        env_agent_selector = importlib.import_module(env_agent_selector_module_name).RandomSelector()
-    elif args.selection == 'single':
-        env_agent_selector_module_name = f'maenvs4vrp.environments.{args.vrp_env}.env_agent_selector'
-        env_agent_selector = importlib.import_module(env_agent_selector_module_name).AgentSelector()
-    elif args.selection == 'stime':
-        env_agent_selector_module_name = f'maenvs4vrp.environments.{args.vrp_env}.env_agent_selector'
-        env_agent_selector = importlib.import_module(env_agent_selector_module_name).SmallestTimeAgentSelector()
-
-    observations_module_name = f'maenvs4vrp.environments.{args.vrp_env}.observations'
+    observations_module_name = f"maenvs4vrp.environments.{args.vrp_env}.observations"
     observations = importlib.import_module(observations_module_name).Observations()
 
-    generator_module_name = f'maenvs4vrp.environments.{args.vrp_env}.instances_generator'
-    generator = importlib.import_module(generator_module_name).InstanceGenerator(device=args.device)
+    generator_module_name = (
+        f"maenvs4vrp.environments.{args.vrp_env}.instances_generator"
+    )
+    generator = importlib.import_module(generator_module_name).InstanceGenerator(
+        device=args.device
+    )
 
-    environment_module_name = f'maenvs4vrp.environments.{args.vrp_env}.env'
+    environment_module_name = f"maenvs4vrp.environments.{args.vrp_env}.env"
     environment_module = importlib.import_module(environment_module_name)
 
-    env_agent_reward_module_name = f'maenvs4vrp.environments.{args.vrp_env}.env_agent_reward'
-    reward_evaluator = importlib.import_module(env_agent_reward_module_name).DenseReward()
+    env_agent_reward_module_name = (
+        f"maenvs4vrp.environments.{args.vrp_env}.env_agent_reward"
+    )
+    reward_evaluator = importlib.import_module(
+        env_agent_reward_module_name
+    ).DenseReward()
 
+    env = environment_module.Environment(
+        instance_generator_object=generator,
+        obs_builder_object=observations,
+        agent_selector_object=env_agent_selector,
+        reward_evaluator=reward_evaluator,
+        device=args.device,
+        batch_size=args.batch_size,
+        seed=args.seed,
+    )
 
-    env = environment_module.Environment(instance_generator_object=generator,  
-                    obs_builder_object=observations,
-                    agent_selector_object=env_agent_selector,
-                    reward_evaluator=reward_evaluator,
-                    device=args.device,
-                    batch_size = args.batch_size,
-                    seed=args.seed)    
-    
-   
-    if args.val_set == 'None':
-        eval_generator = importlib.import_module(generator_module_name).InstanceGenerator(device=args.device) 
+    if args.val_set == "None":
+        eval_generator = importlib.import_module(
+            generator_module_name
+        ).InstanceGenerator(device=args.device)
     else:
-        set_of_instances = set(generator.get_list_of_benchmark_instances()[args.val_set]['validation'])
-        eval_generator = importlib.import_module(generator_module_name).InstanceGenerator(set_of_instances=set_of_instances,
-                                                                                          device=args.device) 
-        args.eval_batch_size = None   
+        set_of_instances = set(
+            generator.get_list_of_benchmark_instances()[args.val_set]["validation"]
+        )
+        eval_generator = importlib.import_module(
+            generator_module_name
+        ).InstanceGenerator(set_of_instances=set_of_instances, device=args.device)
+        args.eval_batch_size = None
 
-    eval_env = environment_module.Environment(instance_generator_object=eval_generator,  
-                        obs_builder_object=observations,
-                        agent_selector_object=env_agent_selector,
-                        reward_evaluator=reward_evaluator,
-                        device=args.device,
-                        batch_size = args.eval_batch_size,
-                        seed=args.eval_seed)
-    
+    eval_env = environment_module.Environment(
+        instance_generator_object=eval_generator,
+        obs_builder_object=observations,
+        agent_selector_object=env_agent_selector,
+        reward_evaluator=reward_evaluator,
+        device=args.device,
+        batch_size=args.eval_batch_size,
+        seed=args.eval_seed,
+    )
 
     nodes_static_obs_dim = env.obs_builder.get_nodes_static_feat_dim()
     nodes_dynamic_obs_dim = env.obs_builder.get_nodes_dynamic_feat_dim()
@@ -266,24 +324,27 @@ def train(args, writer):
     start_time = time.time()
 
     print("Initializing attention model...")
-    learner = Learner(nodes_stat_obs_dim=nodes_static_obs_dim, 
-                     nodes_dyn_obs_dim=nodes_dynamic_obs_dim,  
-                     agent_obs_dim=agent_obs_dim, 
-                     agents_obs_dim=agents_obs_dim, 
-                     global_obs_dim=global_obs_dim,
-                     embed_dim=128)
+    learner = Learner(
+        nodes_stat_obs_dim=nodes_static_obs_dim,
+        nodes_dyn_obs_dim=nodes_dynamic_obs_dim,
+        agent_obs_dim=agent_obs_dim,
+        agents_obs_dim=agents_obs_dim,
+        global_obs_dim=global_obs_dim,
+        embed_dim=128,
+    )
 
     learner.to(args.device)
-
 
     # OPTIMIZER AND LR SCHEDULER
     print("Initializing Adam optimizer...")
 
     lr_sched = None
-    optim = Adam([
-        {"params": learner.policy.parameters(), "lr": args.learning_rate},
-        {"params": learner.critic_net.parameters(), "lr": args.critic_rate}
-        ])
+    optim = Adam(
+        [
+            {"params": learner.policy.parameters(), "lr": args.learning_rate},
+            {"params": learner.critic_net.parameters(), "lr": args.critic_rate},
+        ]
+    )
 
     best_lb_total_return = -10000000
 
@@ -292,57 +353,77 @@ def train(args, writer):
     train_stats = []
     test_stats = []
     for ep in range(0, args.epoch_count):
-        train_stats.append( train_epoch(args, env, learner, optim, ep, writer) )
-        test_metrics =  test_epoch(args, eval_env, learner, ep, writer) 
+        train_stats.append(train_epoch(args, env, learner, optim, ep, writer))
+        test_metrics = test_epoch(args, eval_env, learner, ep, writer)
         test_stats.append(test_metrics)
         latest_episodic_return = test_metrics[0]
 
         writer.add_scalar("charts/SPS", int(ep / (time.time() - start_time)), ep)
 
         print("\n-------------------------------------------\n")
-        print ('Saving latest model...')
-        save_model_state_dict(osp.join(args.log_path, "models/latest_model_"+args.run_name+".zip"), learner)
+        print("Saving latest model...")
+        save_model_state_dict(
+            osp.join(args.log_path, "models/latest_model_" + args.run_name + ".zip"),
+            learner,
+        )
         learner.to(args.device)
-        print ('done')
+        print("done")
 
         if latest_episodic_return > best_lb_total_return:
-            print ('Old best model: {: .2f}'.format(best_lb_total_return))
+            print("Old best model: {: .2f}".format(best_lb_total_return))
             best_lb_total_return = latest_episodic_return
-            print ('New best model: {: .2f}'.format(latest_episodic_return))
-            print ('Saving new best model')
-            save_model_state_dict(osp.join(args.log_path, "models/best_model_"+args.run_name+".zip"), learner)
+            print("New best model: {: .2f}".format(latest_episodic_return))
+            print("Saving new best model")
+            save_model_state_dict(
+                osp.join(args.log_path, "models/best_model_" + args.run_name + ".zip"),
+                learner,
+            )
             learner.to(args.device)
-            print ('done')
+            print("done")
         else:
-            print ('No improvement')
-            print (f'Latest model: {latest_episodic_return}')
-            print (f'Current best model: {best_lb_total_return}')
+            print("No improvement")
+            print(f"Latest model: {latest_episodic_return}")
+            print(f"Current best model: {best_lb_total_return}")
 
         writer.add_scalar("eval/best_model_lb_total_reward", best_lb_total_return, ep)
 
         print("\n-------------------------------------------\n")
-         
-    print ('saving latest model')
-    save_model_state_dict(osp.join(args.log_path, "models/latest_model_"+args.run_name+".zip"), learner)
+
+    print("saving latest model")
+    save_model_state_dict(
+        osp.join(args.log_path, "models/latest_model_" + args.run_name + ".zip"),
+        learner,
+    )
     learner.to(args.device)
-    print ('done')
+    print("done")
     writer.close()
 
-    
+
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--vrp_env", type=str, default="toptw", help="select the vrp environment to train on")
+    parser.add_argument(
+        "--vrp_env",
+        type=str,
+        default="toptw",
+        help="select the vrp environment to train on",
+    )
     parser.add_argument("--num_agents", type=int, default=5, help="number of agents")
     parser.add_argument("--num_nodes", type=int, default=101, help="number of nodes")
-    parser.add_argument("--selection", type=str, default="rand", choices=['rand', 'single', 'stime'], help="next agent selection strategy")
-    parser.add_argument("--val_set", type=str, default='None', help="validation set")
+    parser.add_argument(
+        "--selection",
+        type=str,
+        default="rand",
+        choices=["rand", "single", "stime"],
+        help="next agent selection strategy",
+    )
+    parser.add_argument("--val_set", type=str, default="None", help="validation set")
     args = parser.parse_args()
     return args
 
 
 def get_args():
     args = parse_args()
-    args.model_name = 'our_net'
+    args.model_name = "our_net"
     args.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     args.learning_rate = 0.0001
     args.critic_rate = 0.001
@@ -353,7 +434,7 @@ def get_args():
     args.max_grad_norm = 2
     args.torch_deterministic = True
     args.seed = 2297
-    args.log_path = 'runs'
+    args.log_path = "runs"
     args.eval_seed = 0
     args.time = time.strftime("%Y_%m_%d_%Hh%Mm")
     args.run_name = f"{args.model_name}_{args.vrp_env}_{args.selection}_{args.num_nodes}n_{args.num_agents}a_{args.time}"
@@ -369,10 +450,12 @@ def main(args):
     writer = SummaryWriter(f"runs/{args.run_name}")
     writer.add_text(
         "hyperparameters",
-        "|param|value|\n|-|-|\n%s" % ("\n".join([f"|{key}|{value}|" for key, value in vars(args).items()])),
+        "|param|value|\n|-|-|\n%s"
+        % ("\n".join([f"|{key}|{value}|" for key, value in vars(args).items()])),
     )
-    
+
     train(args, writer)
+
 
 if __name__ == "__main__":
     main(get_args())

@@ -1,8 +1,7 @@
-
 from torch import Tensor
 
+
 def get_distance(x: Tensor, y: Tensor):
-    
     """
     Euclidean distance between two tensors of shape `[..., n, dim].
     Taken from: https://github.com/ai4co/rl4co/blob/main/rl4co/utils/ops.py

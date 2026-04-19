@@ -16,12 +16,12 @@ class ToyInstanceGenerator(InstanceBuilder):
         set_of_instances: set = None,
         device: Optional[str] = "cpu",
         batch_size: Optional[torch.Size] = None,
-        seed: int = None
+        seed: int = None,
     ) -> None:
-        """    
+        """
         Constructor. Toy instance generator for testing.
 
-        Args:       
+        Args:
             instance_type(str):  instance type. Can be "validation" or "test". Defaults to "validation".
             set_of_instances(set): Set of instances file names. Defaults to None.
             device(str, optional): Type of processing. It can be "cpu" or "gpu". Defaults to "cpu".
@@ -40,12 +40,9 @@ class ToyInstanceGenerator(InstanceBuilder):
         if batch_size is None:
             batch_size = [1]
         else:
-            batch_size = (
-                [batch_size] if isinstance(batch_size, int) else batch_size
-            )
+            batch_size = [batch_size] if isinstance(batch_size, int) else batch_size
 
         self.batch_size = torch.Size(batch_size)
-
 
         self.max_num_agents = 4
         self.max_num_nodes = 13
@@ -80,21 +77,16 @@ class ToyInstanceGenerator(InstanceBuilder):
         if seed is not None:
             self._set_seed(seed)
 
-        
         if num_agents is not None:
-            assert num_agents>0, f"number of agents must be grater them 0!"
+            assert num_agents > 0, "number of agents must be grater them 0!"
             self.max_num_agents = num_agents
         if num_nodes is not None:
-            assert num_nodes>0, f"number of services must be grater them 0!"
+            assert num_nodes > 0, "number of services must be grater them 0!"
             self.max_num_nodes = num_nodes
 
-
         if batch_size is not None:
-            batch_size = (
-                [batch_size] if isinstance(batch_size, int) else batch_size
-            )
+            batch_size = [batch_size] if isinstance(batch_size, int) else batch_size
             self.batch_size = torch.Size(batch_size)
-
 
         instance = TensorDict({}, batch_size=self.batch_size, device=self.device)
 
@@ -108,7 +100,7 @@ class ToyInstanceGenerator(InstanceBuilder):
         coords = torch.tensor(
             [
                 [
-                    [0, 0],   # depot
+                    [0, 0],  # depot
                     [1, 2],
                     [2, 3],
                     [3, 2],
@@ -124,31 +116,27 @@ class ToyInstanceGenerator(InstanceBuilder):
                 ]
             ],
             dtype=torch.float32,
-            device=self.device
+            device=self.device,
         )
         instance["coords"] = coords
 
         # Demands
         demands = torch.tensor(
-            [[0., 5., 6., 4., 7., 3., 4., 6., 5., 3., 6., 5., 4.]],
+            [[0.0, 5.0, 6.0, 4.0, 7.0, 3.0, 4.0, 6.0, 5.0, 3.0, 6.0, 5.0, 4.0]],
             dtype=torch.float32,
-            device=self.device
+            device=self.device,
         )
         instance["demands"] = demands
 
         # Capacities (heterogeneous)
         capacity = torch.tensor(
-            [[10., 15., 20., 25.]],
-            dtype=torch.float32,
-            device=self.device
+            [[10.0, 15.0, 20.0, 25.0]], dtype=torch.float32, device=self.device
         )
         instance["capacity"] = capacity
 
         # Speeds
         speed = torch.tensor(
-            [[1.0, 0.8, 1.2, 1.1]],
-            dtype=torch.float32,
-            device=self.device
+            [[1.0, 0.8, 1.2, 1.1]], dtype=torch.float32, device=self.device
         )
         instance["speed"] = speed
 
@@ -197,7 +185,6 @@ class ToyInstanceGenerator(InstanceBuilder):
             Dict: Instance data.
         """
 
-
         if seed is not None:
             self._set_seed(seed)
 
@@ -206,10 +193,10 @@ class ToyInstanceGenerator(InstanceBuilder):
         else:
             random_sample = False
 
-        if instance_name==None and random_sample==False:
+        if instance_name == None and random_sample == False:
             instance_name = self.sample_name_from_set(seed=seed)
-        elif instance_name==None and random_sample==True:
-            instance_name = 'random_instance'
+        elif instance_name == None and random_sample == True:
+            instance_name = "random_instance"
         else:
             instance_name = instance_name
 
@@ -225,7 +212,6 @@ class ToyInstanceGenerator(InstanceBuilder):
         if batch_size is not None:
             batch_size = [batch_size] if isinstance(batch_size, int) else batch_size
             self.batch_size = torch.Size(batch_size)
-        
 
         if sample_type == "random":
             return self.random_generate_instance(
@@ -234,7 +220,6 @@ class ToyInstanceGenerator(InstanceBuilder):
                 batch_size=batch_size,
                 seed=seed,
             )
-
 
         if sample_type == "saved":
             if instance_name is None:
@@ -245,14 +230,12 @@ class ToyInstanceGenerator(InstanceBuilder):
 
 
 if __name__ == "__main__":
-        
     number_instances = 128
-    print('starting valid/test sets generation')
+    print("starting valid/test sets generation")
 
-    if not os.path.exists('data/generated/test'):
-        os.makedirs('data/generated/test')
-    if not os.path.exists('data/generated/validation'):
-        os.makedirs('data/generated/validation')
+    if not os.path.exists("data/generated/test"):
+        os.makedirs("data/generated/test")
+    if not os.path.exists("data/generated/validation"):
+        os.makedirs("data/generated/validation")
 
-    
-    print('done')
+    print("done")

@@ -57,7 +57,7 @@ You can run all hooks manually with::
 Acknowledgements
 ---------------------------
 
-We adapted these contributing guidelines from `this repo <https://github.com/ai4co/rl4co/blob/main/.github/CONTRIBUTING.md>`_ 
+We adapted these contributing guidelines from `this repo <https://github.com/ai4co/rl4co/blob/main/.github/CONTRIBUTING.md>`_
 
 Licensing
 ---------------------------

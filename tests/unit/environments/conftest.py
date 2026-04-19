@@ -1,3 +1,5 @@
+import pytest
+
 def pytest_addoption(parser):
     parser.addoption(
         "--device",
@@ -26,8 +28,6 @@ def pytest_addoption(parser):
         default=None,
         help="Number of nodes. It can be one or more integers."
     )
-
-import pytest
 
 @pytest.fixture(scope="session")
 def device(request):

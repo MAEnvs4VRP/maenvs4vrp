@@ -1,25 +1,25 @@
-
 from typing import Dict, Optional
 
 import torch
-from tensordict.tensordict import TensorDict
 
 
 class InstanceBuilder(object):
-
     """
     Instance generator base class.
     """
 
-    
     DEFAULT_SEED = 2925
-    def __init__(self, instance_type:str=None, 
-                 set_of_instances:set=None, 
-                 num_services:int=None, 
-                 num_agents:int=None, 
-                 seed:int=None,
-                 device: str = "cpu",
-                 batch_size: torch.Size = None) -> None:
+
+    def __init__(
+        self,
+        instance_type: str = None,
+        set_of_instances: set = None,
+        num_services: int = None,
+        num_agents: int = None,
+        seed: int = None,
+        device: str = "cpu",
+        batch_size: torch.Size = None,
+    ) -> None:
         """
         Constructor
 
@@ -52,7 +52,7 @@ class InstanceBuilder(object):
     def _set_seed(self, seed: Optional[int]):
         """
         Set the random seed used by the environment.
-        
+
         Args:
             seed(int, optional): Seed used.
 
@@ -63,19 +63,19 @@ class InstanceBuilder(object):
         rng = torch.manual_seed(self.seed)
         self.rng = rng
 
-    def read_instance_data(self, instance_name:str)-> Dict:
+    def read_instance_data(self, instance_name: str) -> Dict:
         """
         Read instance data from file.
 
         Args:
             instance_name(str): instance file name.
 
-        Returns: 
-            Dict: Instance data. 
+        Returns:
+            Dict: Instance data.
         """
         raise NotImplementedError()
 
-    def get_instance(self, instance_name:str, preloaded:bool=False)-> Dict:
+    def get_instance(self, instance_name: str, preloaded: bool = False) -> Dict:
         """
         Combine read instance file and parse to Dict.
 
@@ -83,12 +83,14 @@ class InstanceBuilder(object):
             instance_name(str): Instance file name.
             preloaded(bool): If instance data has been pre-loaded. Defaults to False.
 
-        Returns: 
+        Returns:
             Dict: Instance data.
         """
         raise NotImplementedError()
 
-    def load_set_of_instances(self, set_of_instances:set=None, already_loaded:bool=None):
+    def load_set_of_instances(
+        self, set_of_instances: set = None, already_loaded: bool = None
+    ):
         """
         Load every instance on set_of_instances set.
 
@@ -111,9 +113,9 @@ class InstanceBuilder(object):
         """
         raise NotImplementedError()
 
-
-
-    def random_sample_instance(self, num_agents:int=None, num_services:int=None, seed:int=None) -> Dict:
+    def random_sample_instance(
+        self, num_agents: int = None, num_services: int = None, seed: int = None
+    ) -> Dict:
         """
         Sample one instance from instance space.
 
@@ -127,7 +129,7 @@ class InstanceBuilder(object):
         """
         raise NotImplementedError()
 
-    def sample_name_from_set(self, seed:int=None)-> str:
+    def sample_name_from_set(self, seed: int = None) -> str:
         """
         Sample one instance from insance set.
 
@@ -139,7 +141,14 @@ class InstanceBuilder(object):
         """
         raise NotImplementedError()
 
-    def sample_instance(self, num_agents:int=None, num_services:int=None, instance_name:str=None, random_sample:bool=True, seed:int=None)-> Dict:
+    def sample_instance(
+        self,
+        num_agents: int = None,
+        num_services: int = None,
+        instance_name: str = None,
+        random_sample: bool = True,
+        seed: int = None,
+    ) -> Dict:
         """
         Sample one instance from insance space.
 

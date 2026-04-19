@@ -1,1 +1,1 @@
-from ._learner  import AttentionLearner
+from ._learner import AttentionLearner
