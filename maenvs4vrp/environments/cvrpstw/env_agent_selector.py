@@ -7,7 +7,6 @@ class AgentSelector(BaseSelector):
     """
     CVRPSTW agent selector class.
     """
-
     def __init__(self):
         super().__init__()
 
@@ -44,14 +43,9 @@ class AgentSelector(BaseSelector):
         Returns:
             selected_agent(torch.Tensor): Next agent.
         """
-        avail = (
-            torch.arange(self.env.num_agents, dtype=torch.float)
-            .unsqueeze(0)
-            .repeat(*self.env.batch_size, 1)
-            .to(self.env.device)
-        )
-        avail[~self.env.td_state["agents"]["active_agents_mask"]] = float("inf")
-        selected_agent = avail.argmin(1, keepdim=True)
+        avail = torch.arange(self.env.num_agents, dtype = torch.float).unsqueeze(0).repeat(*self.env.batch_size, 1).to(self.env.device)
+        avail[~self.env.td_state['agents']['active_agents_mask']] = float('inf')
+        selected_agent = avail.argmin(1, keepdim = True)
         return selected_agent
 
 
@@ -59,7 +53,6 @@ class RandomSelector(BaseSelector):
     """
     CVRPSTW random agent selector class.
     """
-
     def __init__(self):
         super().__init__()
 
@@ -96,17 +89,15 @@ class RandomSelector(BaseSelector):
         Returns:
             selected_agent(torch.Tensor): Next agent.
         """
-        selected_agent = torch.multinomial(
-            self.env.td_state["agents"]["active_agents_mask"].float(), 1
-        ).to(self.env.device)
+        selected_agent = torch.multinomial(self.env.td_state['agents']['active_agents_mask'].float(), 1).to(self.env.device)
         return selected_agent
+
 
 
 class SmallestTimeAgentSelector(BaseSelector):
     """
     CvRPSTW smallest time agent selector class.
     """
-
     def __init__(self):
         super().__init__()
         """
@@ -141,7 +132,7 @@ class SmallestTimeAgentSelector(BaseSelector):
         Returns:
             selected_agent(torch.Tensor): Next agent.
         """
-        avail = self.env.td_state["agents"]["cur_time"].clone()
-        avail[~self.env.td_state["agents"]["active_agents_mask"]] = float("inf")
-        selected_agent = avail.argmin(1, keepdim=True)
+        avail = self.env.td_state['agents']['cur_time'].clone()
+        avail[~self.env.td_state['agents']['active_agents_mask']] = float('inf')
+        selected_agent = avail.argmin(1, keepdim = True)
         return selected_agent

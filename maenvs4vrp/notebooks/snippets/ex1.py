@@ -13,7 +13,7 @@ class Observations(Observations):
         Returns: 
             Tensor: waiting time at nodes divided by end time.
         """
-        loc = self.env.td_state['coords'].gather(1, self.env.td_state['cur_agent']['cur_node'][:,:,None].expand(-1, -1, 2))
+        loc = self.env.td_state['coords'].gather(1, self.env.td_state['cur_agent']['cur_node_idx'][:,:,None].expand(-1, -1, 2))
         ptime = self.env.td_state['cur_agent']['cur_time'].clone()
         time2j = torch.pairwise_distance(loc, self.env.td_state["coords"], eps=0, keepdim = False)
         arrivej = ptime + time2j

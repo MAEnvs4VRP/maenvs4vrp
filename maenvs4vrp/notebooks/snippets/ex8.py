@@ -1,7 +1,7 @@
 class Environment(Environment):
 
     def _update_state(self, action):
-        loc = self.td_state['coords'].gather(1, self.td_state['cur_agent']['cur_node'][:,:,None].expand(-1, -1, 2))
+        loc = self.td_state['coords'].gather(1, self.td_state['cur_agent']['cur_node_idx'][:,:,None].expand(-1, -1, 2))
         next_loc = self.td_state['coords'].gather(1, action[:,:,None].expand(-1, -1, 2))
 
         ptime = self.td_state['cur_agent']['cur_time'].clone()
@@ -16,8 +16,8 @@ class Environment(Environment):
 
         time_update = arrivej + waitj + service_time
         # update agent cur node
-        self.td_state['cur_agent']['cur_node'] = action
-        self.td_state['agents']['cur_node'].scatter_(1, self.td_state['cur_agent_idx'], self.td_state['cur_agent']['cur_node'])
+        self.td_state['cur_agent']['cur_node_idx'] = action
+        self.td_state['agents']['cur_node_idx'].scatter_(1, self.td_state['cur_agent_idx'], self.td_state['cur_agent']['cur_node_idx'])
         # update agent cur time
         self.td_state['cur_agent']['cur_time'] = time_update
 
@@ -60,4 +60,3 @@ class Environment(Environment):
 
         # if all done activate first agent to guarantee batch consistency during agent sampling
         self.td_state['agents']['active_agents_mask'][self.td_state['agents']['active_agents_mask'].sum(1).eq(0), 0] = True
-        self._update_feasibility()

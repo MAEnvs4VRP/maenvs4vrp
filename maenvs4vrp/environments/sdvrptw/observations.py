@@ -1,71 +1,38 @@
 import torch
+from tensordict import TensorDict
 
 from maenvs4vrp.core.env_observation_builder import ObservationBuilder
 from maenvs4vrp.core.env import AECEnv
 
-from typing import Dict
+from typing import Optional, Dict
 
 
 class Observations(ObservationBuilder):
-    """SDVRPTW observations class."""
+    """SDVRPTW observations class.
+    """
 
-    POSSIBLE_NODES_STATIC_FEATURES = [
-        "x_coordinate",
-        "y_coordinate",
-        "tw_low",
-        "demand",
-        "tw_high",
-        "service_time",
-        "tw_high_minus_tw_low_div_max_dur",
-        "x_coordinate_min_max",
-        "y_coordinate_min_max",
-        "is_depot",
-    ]
+    POSSIBLE_NODES_STATIC_FEATURES = ['x_coordinate', 'y_coordinate', 'tw_low','demand',
+                                    'tw_high',  'service_time', 'tw_high_minus_tw_low_div_max_dur',
+                                    'x_coordinate_min_max', 'y_coordinate_min_max', 'is_depot']
 
-    POSSIBLE_NODES_DYNAMIC_FEATURES = [
-        "curr_demand",
-        "time2open_div_end_time",
-        "time2close_div_end_time",
-        "arrive2node_div_end_time",
-        "time2open_after_step_div_end_time",
-        "time2close_after_step_div_end_time",
-        "time2end_after_step_div_end_time",
-        "fract_time_after_step_div_end_time",
-        "reachable_frac_agents",
-    ]
+    POSSIBLE_NODES_DYNAMIC_FEATURES = ['curr_demand', 'time2open_div_end_time', 'time2close_div_end_time', 'arrive2node_div_end_time',
+                                'time2open_after_step_div_end_time', 'time2close_after_step_div_end_time',
+                                'time2end_after_step_div_end_time', 'fract_time_after_step_div_end_time',
+                                'reachable_frac_agents']
 
-    POSSIBLE_AGENT_FEATURES = [
-        "x_coordinate",
-        "y_coordinate",
-        "x_coordinate_min_max",
-        "y_coordinate_min_max",
-        "frac_current_time",
-        "frac_current_load",
-        "arrivedepot_div_end_time",
-        "frac_feasible_nodes",
-    ]
+    POSSIBLE_AGENT_FEATURES = ['x_coordinate', 'y_coordinate','x_coordinate_min_max', 'y_coordinate_min_max', 'frac_current_time',
+                                'frac_current_load', 'arrivedepot_div_end_time',
+                                'frac_feasible_nodes']
 
-    POSSIBLE_OTHER_AGENTS_FEATURES = [
-        "x_coordinate",
-        "y_coordinate",
-        "x_coordinate_min_max",
-        "y_coordinate_min_max",
-        "frac_current_time",
-        "frac_current_load",
-        "dist2depot_div_end_time",
-        "dist2agent_div_end_time",
-        "frac_feasible_nodes",
-        "time_delta2agent_div_max_dur",
-        "was_last",
-    ]
+    POSSIBLE_OTHER_AGENTS_FEATURES = ['x_coordinate', 'y_coordinate','x_coordinate_min_max', 'y_coordinate_min_max', 'frac_current_time',
+                                    'frac_current_load', 'dist2depot_div_end_time',
+                                    'dist2agent_div_end_time', 'frac_feasible_nodes','time_delta2agent_div_max_dur', 'was_last']
 
-    POSSIBLE_GLOBAL_FEATURES = [
-        "frac_demands",
-        "frac_fleet_load_capacity",
-        "frac_done_agents",
-    ]
+    POSSIBLE_GLOBAL_FEATURES = [ 'frac_demands', 'frac_fleet_load_capacity',
+                                'frac_done_agents']
 
-    def __init__(self, feature_list: Dict = None):
+
+    def __init__(self, feature_list:Dict = None):
         super().__init__()
         """
         Constructor.
@@ -77,19 +44,15 @@ class Observations(ObservationBuilder):
             None.
         """
 
-        self.default_feature_list = {
-            "nodes_static": {
-                "x_coordinate": {"feat": "x_coordinate", "norm": None},
-                "y_coordinate": {"feat": "y_coordinate", "norm": None},
-                "demand": {"feat": "demand", "norm": None},
-                "is_depot": {"feat": "is_depot", "norm": None},
-            },
-            "nodes_dynamic": [],
-            "agent": ["frac_current_load"],
-            "other_agents": [],
-            "all_agents": [],
-            "global": ["frac_fleet_load_capacity", "frac_done_agents"],
-        }
+        self.default_feature_list = {'nodes_static': {'x_coordinate': {'feat': 'x_coordinate', 'norm': None},
+                                    'y_coordinate': {'feat': 'y_coordinate', 'norm': None},
+                                    'demand': {'feat': 'demand', 'norm': None},
+                                    'is_depot': {'feat': 'is_depot', 'norm': None}},
+                                    'nodes_dynamic': [],
+                                    'agent': ['frac_current_load'],
+                                    'other_agents': [],
+                                    'all_agents': [],
+                                    'global': [ 'frac_fleet_load_capacity', 'frac_done_agents']}
 
         if feature_list is None:
             feature_list = self.default_feature_list
@@ -102,7 +65,7 @@ class Observations(ObservationBuilder):
         self.possible_all_agents_features = self.POSSIBLE_ALL_AGENTS_FEATURES
         self.possible_global_features = self.POSSIBLE_GLOBAL_FEATURES
 
-    def set_env(self, env: AECEnv):
+    def set_env(self, env:AECEnv):
         """
         Set environment.
 
@@ -114,6 +77,7 @@ class Observations(ObservationBuilder):
         """
         super().set_env(env)
 
+
     def get_nodes_static_feat_dim(self):
         """
         Nodes static features dimensions.
@@ -124,12 +88,8 @@ class Observations(ObservationBuilder):
         Returns:
             int: Nodes static features dimensions.
         """
-        return sum(
-            [
-                self.feature_list.get("nodes_static", []).get(f).get("dim", 1)
-                for f in self.feature_list.get("nodes_static")
-            ]
-        )
+        return sum([self.feature_list.get('nodes_static', []).get(f).get('dim', 1) \
+                    for f in self.feature_list.get('nodes_static')])
 
     def get_nodes_dynamic_feat_dim(self):
         """
@@ -141,7 +101,7 @@ class Observations(ObservationBuilder):
         Returns:
             int: Nodes dynamic features dimensions.
         """
-        return len(self.feature_list.get("nodes_dynamic", []))
+        return len(self.feature_list.get('nodes_dynamic', []))
 
     def get_nodes_feat_dim(self):
         """
@@ -153,7 +113,7 @@ class Observations(ObservationBuilder):
         Returns:
             int: Nodes features dimensions.
         """
-        return self.get_nodes_static_feat_dim() + self.get_nodes_dynamic_feat_dim()
+        return self.get_nodes_static_feat_dim()+self.get_nodes_dynamic_feat_dim()
 
     def get_agent_feat_dim(self):
         """
@@ -165,7 +125,7 @@ class Observations(ObservationBuilder):
         Returns:
             int: Agent features dimensions.
         """
-        return len(self.feature_list.get("agent", []))
+        return len(self.feature_list.get('agent', []))
 
     def get_other_agents_feat_dim(self):
         """
@@ -177,7 +137,7 @@ class Observations(ObservationBuilder):
         Returns:
             int: Other agent features dimensions.
         """
-        return len(self.feature_list.get("other_agents", []))
+        return len(self.feature_list.get('other_agents', []))
 
     def get_global_feat_dim(self):
         """
@@ -189,7 +149,8 @@ class Observations(ObservationBuilder):
         Returns:
             int: Global features dimensions.
         """
-        return len(self.feature_list.get("global", []))
+        return len(self.feature_list.get('global', []))
+
 
     ## static features
     def get_feat_x_coordinate(self):
@@ -227,7 +188,7 @@ class Observations(ObservationBuilder):
             torch.Tensor: Min. and max. x coordinates of instance nodes.
         """
         ncoord = self._min_max_normalization2d(self.env.td_state["coords"])
-        feat = ncoord[:, :, 0]
+        feat = ncoord[:,:, 0]
         return feat
 
     def get_feat_y_coordinate_min_max(self):
@@ -254,9 +215,7 @@ class Observations(ObservationBuilder):
         Returns:
             torch.Tensor: Nodes time windows starting times.
         """
-        return self.env.td_state["tw_low"] / self.env.td_state[
-            "max_tour_duration"
-        ].unsqueeze(dim=-1)
+        return self.env.td_state['tw_low'] / self.env.td_state['max_tour_duration'].unsqueeze(dim=-1)
 
     def get_feat_tw_high(self):
         """
@@ -268,9 +227,7 @@ class Observations(ObservationBuilder):
         Returns:
             torch.Tensor: Nodes time windows ending times.
         """
-        return self.env.td_state["tw_high"] / self.env.td_state[
-            "max_tour_duration"
-        ].unsqueeze(dim=-1)
+        return self.env.td_state['tw_high'] / self.env.td_state['max_tour_duration'].unsqueeze(dim=-1)
 
     def get_feat_demand(self):
         """
@@ -282,7 +239,7 @@ class Observations(ObservationBuilder):
         Returns:
             torch.Tensor: Nodes demand.
         """
-        return self.env.td_state["demands"] / self.env.td_state["capacity"]
+        return self.env.td_state['demands'] / self.env.td_state['capacity']
 
     def get_feat_service_time(self):
         """
@@ -294,7 +251,7 @@ class Observations(ObservationBuilder):
         Returns:
             torch.Tensor: Nodes service time.
         """
-        return self.env.td_state["service_time"]
+        return self.env.td_state['service_time']
 
     def get_feat_tw_high_minus_tw_low_div_max_dur(self):
         """
@@ -308,9 +265,7 @@ class Observations(ObservationBuilder):
         """
         tw_high = self.get_feat_tw_high()
         tw_low = self.get_feat_tw_low()
-        return (tw_high - tw_low) / self.env.td_state["max_tour_duration"].unsqueeze(
-            dim=-1
-        )
+        return (tw_high-tw_low) / self.env.td_state['max_tour_duration'].unsqueeze(dim=-1)
 
     def get_feat_is_depot(self):
         """
@@ -322,7 +277,8 @@ class Observations(ObservationBuilder):
         Returns:
             torch.Tensor: If the node is depot or not.
         """
-        return self.env.td_state["is_depot"]
+        return self.env.td_state['is_depot']
+
 
     ## dynamic features
     def get_feat_curr_demand(self):
@@ -335,7 +291,7 @@ class Observations(ObservationBuilder):
         Returns:
             torch.Tensor: Fraction of nodes current demands and agent capacities.
         """
-        return self.env.td_state["nodes"]["cur_demands"] / self.env.td_state["capacity"]
+        return self.env.td_state['nodes']['cur_demands'] / self.env.td_state['capacity']
 
     def get_feat_time2open_div_end_time(self):
         """
@@ -347,9 +303,7 @@ class Observations(ObservationBuilder):
         Returns:
             torch.Tensor: Nodes time to open divided by end time.
         """
-        feat = (
-            self.env.td_state["tw_low"] - self.env.td_state["cur_agent"]["cur_time"]
-        ) / self.env.td_state["end_time"].unsqueeze(dim=-1)
+        feat = (self.env.td_state['tw_low'] - self.env.td_state['cur_agent']['cur_time']) / self.env.td_state['end_time'].unsqueeze(dim=-1)
         return feat
 
     def get_feat_time2close_div_end_time(self):
@@ -362,9 +316,7 @@ class Observations(ObservationBuilder):
         Returns:
             torch.Tensor: Nodes time to close divided by end time.
         """
-        feat = (
-            self.env.td_state["tw_high"] - self.env.td_state["cur_agent"]["cur_time"]
-        ) / self.env.td_state["end_time"].unsqueeze(dim=-1)
+        feat = (self.env.td_state['tw_high'] - self.env.td_state['cur_agent']['cur_time']) / self.env.td_state['end_time'].unsqueeze(dim=-1)
         return feat
 
     def get_feat_arrive2node_div_end_time(self):
@@ -377,18 +329,11 @@ class Observations(ObservationBuilder):
         Returns:
             torch.Tensor: Agent arriving time to nodes divided by end time.
         """
-        loc = self.env.td_state["coords"].gather(
-            1,
-            self.env.td_state["cur_agent"]["cur_node_idx"][:, :, None].expand(
-                -1, -1, 2
-            ),
-        )
-        ptime = self.env.td_state["cur_agent"]["cur_time"].clone()
-        time2j = torch.pairwise_distance(
-            loc, self.env.td_state["coords"], eps=0, keepdim=False
-        )
+        loc = self.env.td_state['coords'].gather(1, self.env.td_state['cur_agent']['cur_node_idx'][:,:,None].expand(-1, -1, 2))
+        ptime = self.env.td_state['cur_agent']['cur_time'].clone()
+        time2j = torch.pairwise_distance(loc, self.env.td_state["coords"], eps=0, keepdim = False)
         arrivej = ptime + time2j
-        return arrivej / self.env.td_state["end_time"].unsqueeze(dim=-1)
+        return arrivej / self.env.td_state['end_time'].unsqueeze(dim=-1)
 
     def get_feat_time2open_after_step_div_end_time(self):
         """
@@ -401,11 +346,9 @@ class Observations(ObservationBuilder):
             torch.Tensor: Nodes time to open, after agent step, divided by end time.
         """
 
-        arrivej = self.get_feat_arrive2node_div_end_time() * self.env.td_state[
-            "end_time"
-        ].unsqueeze(dim=-1)
-        feat = self.env.td_state["tw_low"] - arrivej
-        return feat / self.env.td_state["end_time"].unsqueeze(dim=-1)
+        arrivej = self.get_feat_arrive2node_div_end_time() * self.env.td_state['end_time'].unsqueeze(dim=-1)
+        feat = (self.env.td_state['tw_low'] - arrivej)
+        return feat / self.env.td_state['end_time'].unsqueeze(dim=-1)
 
     def get_feat_time2close_after_step_div_end_time(self):
         """
@@ -417,11 +360,9 @@ class Observations(ObservationBuilder):
         Returns:
             torch.Tensor: Nodes time to close, after agent step, divided by end time.
         """
-        arrivej = self.get_feat_arrive2node_div_end_time() * self.env.td_state[
-            "end_time"
-        ].unsqueeze(dim=-1)
-        feat = self.env.td_state["tw_high"] - arrivej
-        return feat / self.env.td_state["end_time"].unsqueeze(dim=-1)
+        arrivej = self.get_feat_arrive2node_div_end_time() * self.env.td_state['end_time'].unsqueeze(dim=-1)
+        feat = (self.env.td_state['tw_high'] - arrivej)
+        return feat / self.env.td_state['end_time'].unsqueeze(dim=-1)
 
     def get_feat_time2end_after_step_div_end_time(self):
         """
@@ -433,11 +374,9 @@ class Observations(ObservationBuilder):
         Returns:
             torch.Tensor: Time end, after agent step to node, divided by end time.
         """
-        arrivej = self.get_feat_arrive2node_div_end_time() * self.env.td_state[
-            "end_time"
-        ].unsqueeze(dim=-1)
-        feat = self.env.td_state["end_time"].unsqueeze(dim=-1) - arrivej
-        return feat / self.env.td_state["end_time"].unsqueeze(dim=-1)
+        arrivej = self.get_feat_arrive2node_div_end_time() * self.env.td_state['end_time'].unsqueeze(dim=-1)
+        feat = (self.env.td_state['end_time'].unsqueeze(dim=-1) - arrivej)
+        return feat / self.env.td_state['end_time'].unsqueeze(dim=-1)
 
     def get_feat_fract_time_after_step_div_end_time(self):
         """
@@ -449,11 +388,9 @@ class Observations(ObservationBuilder):
         Returns:
             torch.Tensor: Fraction of time left, after agent step to node.
         """
-        arrivej = self.get_feat_arrive2node_div_end_time() * self.env.td_state[
-            "end_time"
-        ].unsqueeze(dim=-1)
-        feat = arrivej - self.env.td_state["start_time"].unsqueeze(dim=-1)
-        return feat / self.env.td_state["end_time"].unsqueeze(dim=-1)
+        arrivej = self.get_feat_arrive2node_div_end_time() * self.env.td_state['end_time'].unsqueeze(dim=-1)
+        feat = (arrivej - self.env.td_state['start_time'].unsqueeze(dim=-1))
+        return feat / self.env.td_state['end_time'].unsqueeze(dim=-1)
 
     def get_feat_reachable_frac_agents(self):
         """
@@ -465,7 +402,7 @@ class Observations(ObservationBuilder):
         Returns:
             torch.Tensor: Feasible nodes per agent.
         """
-        feat = self.env.td_state["agents"]["action_mask"].sum(dim=1)
+        feat = self.env.td_state['agents']['action_mask'].sum(dim=1)
 
         return feat / self.env.num_agents
 
@@ -480,12 +417,7 @@ class Observations(ObservationBuilder):
         Returns:
             torch.Tensor: Current agent X coordinate.
         """
-        loc = self.env.td_state["coords"].gather(
-            1,
-            self.env.td_state["cur_agent"]["cur_node_idx"][:, :, None].expand(
-                -1, -1, 2
-            ),
-        )
+        loc = self.env.td_state["coords"].gather(1, self.env.td_state['cur_agent']['cur_node_idx'][:,:,None].expand(-1, -1, 2))
         feat = loc[:, :, 0]
         return feat
 
@@ -499,12 +431,7 @@ class Observations(ObservationBuilder):
         Returns:
             torch.Tensor: Current agent Y coordinate.
         """
-        loc = self.env.td_state["coords"].gather(
-            1,
-            self.env.td_state["cur_agent"]["cur_node_idx"][:, :, None].expand(
-                -1, -1, 2
-            ),
-        )
+        loc = self.env.td_state["coords"].gather(1, self.env.td_state['cur_agent']['cur_node_idx'][:,:,None].expand(-1, -1, 2))
         feat = loc[:, :, 1]
         return feat
 
@@ -519,12 +446,7 @@ class Observations(ObservationBuilder):
             torch.Tensor: Current agent min-max normalized X location.
         """
         ncoord = self._min_max_normalization2d(self.env.td_state["coords"])
-        loc = ncoord.gather(
-            1,
-            self.env.td_state["cur_agent"]["cur_node_idx"][:, :, None].expand(
-                -1, -1, 2
-            ),
-        )
+        loc = ncoord.gather(1, self.env.td_state['cur_agent']['cur_node_idx'][:,:,None].expand(-1, -1, 2))
         feat = loc[:, :, 0]
         return feat
 
@@ -539,12 +461,7 @@ class Observations(ObservationBuilder):
             torch.Tensor: Current agent min-max normalized Y location.
         """
         ncoord = self._min_max_normalization2d(self.env.td_state["coords"])
-        loc = ncoord.gather(
-            1,
-            self.env.td_state["cur_agent"]["cur_node_idx"][:, :, None].expand(
-                -1, -1, 2
-            ),
-        )
+        loc = ncoord.gather(1, self.env.td_state['cur_agent']['cur_node_idx'][:,:,None].expand(-1, -1, 2))
         feat = loc[:, :, 1]
         return feat
 
@@ -558,10 +475,8 @@ class Observations(ObservationBuilder):
         Returns:
             torch.Tensor: Agent fraction of time elapsed.
         """
-        feat = self.env.td_state["cur_agent"]["cur_time"] - self.env.td_state[
-            "start_time"
-        ].unsqueeze(1)
-        return feat / self.env.td_state["max_tour_duration"].unsqueeze(1)
+        feat =  (self.env.td_state['cur_agent']['cur_time'] - self.env.td_state['start_time'].unsqueeze(1))
+        return feat / self.env.td_state['max_tour_duration'].unsqueeze(1)
 
     def get_feat_agent_frac_current_load(self):
         """
@@ -573,10 +488,7 @@ class Observations(ObservationBuilder):
         Returns:
             torch.Tensor: Agent fraction of used capacity.
         """
-        feat = (
-            self.env.td_state["cur_agent"]["cur_load"]
-            - self.env.td_state["agents"]["capacity"]
-        ) / self.env.td_state["agents"]["capacity"]
+        feat =  (self.env.td_state['cur_agent']['cur_load'] - self.env.td_state['agents']['capacity'])  / self.env.td_state['agents']['capacity']
         return feat
 
     def get_feat_agent_arrivedepot_div_end_time(self):
@@ -589,21 +501,14 @@ class Observations(ObservationBuilder):
         Returns:
             torch.Tensor: Agent time to depot divided by end time.
         """
-        loc = self.env.td_state["coords"].gather(
-            1,
-            self.env.td_state["cur_agent"]["cur_node_idx"][:, :, None].expand(
-                -1, -1, 2
-            ),
-        )
-        ptime = self.env.td_state["cur_agent"]["cur_time"].clone()
-        time2depot = torch.pairwise_distance(
-            loc, self.env.td_state["depot_loc"], eps=0, keepdim=False
-        )
+        loc = self.env.td_state['coords'].gather(1, self.env.td_state['cur_agent']['cur_node_idx'][:,:,None].expand(-1, -1, 2))
+        ptime = self.env.td_state['cur_agent']['cur_time'].clone()
+        time2depot = torch.pairwise_distance(loc, self.env.td_state['depot_loc'], eps=0, keepdim = False)
         arrivej = ptime + time2depot
 
-        feat = arrivej - self.env.td_state["start_time"].unsqueeze(1)
+        feat = (arrivej - self.env.td_state['start_time'].unsqueeze(1))
 
-        return feat / self.env.td_state["end_time"].unsqueeze(1)
+        return feat / self.env.td_state['end_time'].unsqueeze(1)
 
     def get_feat_agent_frac_feasible_nodes(self):
         """
@@ -615,7 +520,7 @@ class Observations(ObservationBuilder):
         Returns:
             torch.Tensor: Fraction of current agent feasible nodes, in order to the total number of instance nodes.
         """
-        feat = self.env.td_state["cur_agent"]["action_mask"].sum(dim=1).unsqueeze(1)
+        feat = self.env.td_state['cur_agent']['action_mask'].sum(dim=1).unsqueeze(1)
         return feat / self.env.num_nodes
 
     def get_feat_agents_dist2depot_div_end_time(self):
@@ -628,13 +533,9 @@ class Observations(ObservationBuilder):
         Returns:
             torch.Tensor: Fraction of current agent distance to depot compared to its end time.
         """
-        locs = self.env.td_state["coords"].gather(
-            1, self.env.td_state["agents"]["cur_node_idx"][:, :, None].expand(-1, -1, 2)
-        )
-        feat = torch.pairwise_distance(
-            self.env.td_state["depot_loc"], locs, eps=0, keepdim=False
-        )
-        return feat / self.env.td_state["end_time"].unsqueeze(dim=-1)
+        locs = self.env.td_state["coords"].gather(1, self.env.td_state['agents']['cur_node_idx'][:,:,None].expand(-1, -1, 2))
+        feat = torch.pairwise_distance(self.env.td_state['depot_loc'], locs, eps=0, keepdim = False)
+        return feat  / self.env.td_state['end_time'].unsqueeze(dim=-1)
 
     ## Other agents features
     def get_feat_other_agents_x_coordinate(self):
@@ -647,9 +548,7 @@ class Observations(ObservationBuilder):
         Returns:
             torch.Tensor: Agents X coordinates.
         """
-        loc = self.env.td_state["coords"].gather(
-            1, self.env.td_state["agents"]["cur_node_idx"][:, :, None].expand(-1, -1, 2)
-        )
+        loc = self.env.td_state["coords"].gather(1, self.env.td_state['agents']['cur_node_idx'][:,:,None].expand(-1, -1, 2))
         feat = loc[:, :, 0]
         return feat
 
@@ -663,9 +562,7 @@ class Observations(ObservationBuilder):
         Returns:
             torch.Tensor: Agents Y coordinates.
         """
-        loc = self.env.td_state["coords"].gather(
-            1, self.env.td_state["agents"]["cur_node_idx"][:, :, None].expand(-1, -1, 2)
-        )
+        loc = self.env.td_state["coords"].gather(1, self.env.td_state['agents']['cur_node_idx'][:,:,None].expand(-1, -1, 2))
         feat = loc[:, :, 1]
         return feat
 
@@ -680,9 +577,7 @@ class Observations(ObservationBuilder):
             torch.Tensor: Agents min-max normalized X location.
         """
         ncoord = self._min_max_normalization2d(self.env.td_state["coords"])
-        loc = ncoord.gather(
-            1, self.env.td_state["agents"]["cur_node_idx"][:, :, None].expand(-1, -1, 2)
-        )
+        loc = ncoord.gather(1, self.env.td_state['agents']['cur_node_idx'][:,:,None].expand(-1, -1, 2))
         feat = loc[:, :, 0]
         return feat
 
@@ -697,9 +592,7 @@ class Observations(ObservationBuilder):
             torch.Tensor: Agents min-max normalized Y location.
         """
         ncoord = self._min_max_normalization2d(self.env.td_state["coords"])
-        loc = ncoord.gather(
-            1, self.env.td_state["agents"]["cur_node_idx"][:, :, None].expand(-1, -1, 2)
-        )
+        loc = ncoord.gather(1, self.env.td_state['agents']['cur_node_idx'][:,:,None].expand(-1, -1, 2))
         feat = loc[:, :, 1]
         return feat
 
@@ -713,10 +606,7 @@ class Observations(ObservationBuilder):
         Returns:
             torch.Tensor: Agents fraction of used capacity.
         """
-        feats = (
-            self.env.td_state["agents"]["cur_load"]
-            / self.env.td_state["agents"]["capacity"]
-        )
+        feats = self.env.td_state['agents']['cur_load'] / self.env.td_state['agents']['capacity']
         return feats
 
     def get_feat_other_agents_remaining_capacity(self):
@@ -729,7 +619,7 @@ class Observations(ObservationBuilder):
         Returns:
             torch.Tensor: Agent fraction of used capacity.
         """
-        feat = self.env.td_state["agents"]["cur_load"]
+        feat =  self.env.td_state['agents']['cur_load']
         return feat
 
     def get_feat_agents_frac_feasible_nodes(self):
@@ -742,7 +632,7 @@ class Observations(ObservationBuilder):
         Returns:
             torch.Tensor: Fraction of agents feasible nodes, in order to the total number of instance nodes.
         """
-        feat = self.env.td_state["agents"]["action_mask"].sum(dim=-1)
+        feat = self.env.td_state['agents']['action_mask'].sum(dim=-1)
         return feat / self.env.num_nodes
 
     def get_feat_other_agents_was_last(self):
@@ -755,13 +645,7 @@ class Observations(ObservationBuilder):
         Returns:
             torch.Tensor: Last agent performing an action.
         """
-        feats = torch.zeros_like(
-            self.env.td_state["agents"]["active_agents_mask"], dtype=torch.long
-        ).scatter_(
-            1,
-            self.env.td_state["cur_agent_idx"],
-            torch.ones_like(self.env.td_state["cur_agent_idx"]),
-        )
+        feats = torch.zeros_like(self.env.td_state['agents']['active_agents_mask'], dtype=torch.long).scatter_(1, self.env.td_state['cur_agent_idx'], torch.ones_like(self.env.td_state['cur_agent_idx']))
         return feats
 
     ## All agents
@@ -775,9 +659,7 @@ class Observations(ObservationBuilder):
         Returns:
             torch.Tensor: Agents X coordinates.
         """
-        loc = self.env.td_state["coords"].gather(
-            1, self.env.td_state["agents"]["cur_node_idx"][:, :, None].expand(-1, -1, 2)
-        )
+        loc = self.env.td_state["coords"].gather(1, self.env.td_state['agents']['cur_node_idx'][:,:,None].expand(-1, -1, 2))
         feat = loc[:, :, 0]
         return feat
 
@@ -791,9 +673,7 @@ class Observations(ObservationBuilder):
         Returns:
             torch.Tensor: Agents Y coordinates.
         """
-        loc = self.env.td_state["coords"].gather(
-            1, self.env.td_state["agents"]["cur_node_idx"][:, :, None].expand(-1, -1, 2)
-        )
+        loc = self.env.td_state["coords"].gather(1, self.env.td_state['agents']['cur_node_idx'][:,:,None].expand(-1, -1, 2))
         feat = loc[:, :, 1]
         return feat
 
@@ -807,7 +687,7 @@ class Observations(ObservationBuilder):
         Returns:
             torch.Tensor: Agents current time.
         """
-        feats = self.env.td_state["agents"]["cur_time"]
+        feats = self.env.td_state['agents']['cur_time']
         return feats
 
     def get_feat_all_agents_remaining_capacity(self):
@@ -820,7 +700,7 @@ class Observations(ObservationBuilder):
         Returns:
             torch.Tensor: Agent fraction of used capacity.
         """
-        feat = self.env.td_state["agents"]["cur_load"]
+        feat =  self.env.td_state['agents']['cur_load']
         return feat
 
     ## Global features
@@ -835,7 +715,7 @@ class Observations(ObservationBuilder):
         Returns:
             torch.Tensor: Fraction of done agents.
         """
-        feat = self.env.td_state["agents"]["active_agents_mask"].sum(dim=1).unsqueeze(1)
+        feat = self.env.td_state['agents']['active_agents_mask'].sum(dim=1).unsqueeze(1)
         return 1 - (feat / self.env.num_agents)
 
     def get_feat_global_frac_demands(self):
@@ -848,8 +728,8 @@ class Observations(ObservationBuilder):
         Returns:
             torch.Tensor: Fraction of served demands.
         """
-        feat = self.env.td_state["nodes"]["cur_demands"].sum(dim=-1).unsqueeze(1)
-        return feat / self.env.td_state["demands"].sum(dim=-1).unsqueeze(1)
+        feat = self.env.td_state['nodes']['cur_demands'].sum(dim=-1).unsqueeze(1)
+        return feat / self.env.td_state['demands'].sum(dim=-1).unsqueeze(1)
 
     def get_feat_global_frac_fleet_load_capacity(self):
         """
@@ -861,8 +741,8 @@ class Observations(ObservationBuilder):
         Returns:
             torch.Tensor: Fraction of fleet load capacity.
         """
-        feat = self.env.td_state["agents"]["cur_load"].sum(dim=-1).unsqueeze(1)
-        capacity = self.env.td_state["agents"]["capacity"]
+        feat = self.env.td_state['agents']['cur_load'].sum(dim=-1).unsqueeze(1)
+        capacity = self.env.td_state['agents']['capacity']
         return feat / (capacity * self.env.num_agents)
 
     # --------------------------------------------------------------------------------------

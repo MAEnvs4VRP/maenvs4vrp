@@ -5,7 +5,7 @@ class Environment(Environment):
         _mask = self.td_state['nodes']['active_nodes_mask'].clone() * self.td_state['cur_agent']['action_mask'].clone()
 
         # time windows constraints
-        loc = self.td_state['coords'].gather(1, self.td_state['cur_agent']['cur_node'][:,:,None].expand(-1, -1, 2))
+        loc = self.td_state['coords'].gather(1, self.td_state['cur_agent']['cur_node_idx'][:,:,None].expand(-1, -1, 2))
         ptime = self.td_state['cur_agent']['cur_time'].clone()
         time2j = torch.pairwise_distance(loc, self.td_state["coords"], eps=0, keepdim = False)
         if self.n_digits is not None:
