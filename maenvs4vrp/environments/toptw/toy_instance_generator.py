@@ -60,6 +60,7 @@ class ToyInstanceGenerator(InstanceBuilder):
         num_agents: int = 4,
         num_nodes: int = 13,
         service_times: int = 0.2,
+        speed: float = 1.0,
         profits: str = "distance",
         batch_size: int = 1,
         seed: int = None,
@@ -89,6 +90,8 @@ class ToyInstanceGenerator(InstanceBuilder):
             self.max_num_nodes = num_nodes
         if service_times is not None:
             self.service_times = service_times
+        if speed is not None:
+            assert speed > 0, "Speed must be greater than 0!"
 
         if batch_size is not None:
             batch_size = [batch_size] if isinstance(batch_size, int) else batch_size
@@ -128,7 +131,9 @@ class ToyInstanceGenerator(InstanceBuilder):
         )
         service_times[:, self.depot_idx] = 0
         instance["service_time"] = service_times
-
+        instance["speed"] = torch.full(
+            (*self.batch_size, 1), speed, dtype=torch.float32
+        )
         time_windows = torch.tensor(
             [
                 [
@@ -199,6 +204,7 @@ class ToyInstanceGenerator(InstanceBuilder):
         num_agents=None,
         num_nodes=None,
         service_times=0.2,
+        speed: float = 1.0,
         profits: str = "uniform",
         instance_name: str = None,
         sample_type: str = "random",
@@ -244,6 +250,8 @@ class ToyInstanceGenerator(InstanceBuilder):
             num_nodes = 13
         if service_times is None:
             service_times = 0.2
+        if speed is None:
+            speed = 1.0
 
         if batch_size is not None:
             batch_size = [batch_size] if isinstance(batch_size, int) else batch_size
@@ -255,6 +263,7 @@ class ToyInstanceGenerator(InstanceBuilder):
                 num_nodes=num_nodes,
                 profits=profits,
                 service_times=service_times,
+                speed=speed,
                 batch_size=batch_size,
                 seed=seed,
             )
