@@ -1,6 +1,8 @@
-**********
-MAEnvs4VRP
-**********
+.. raw:: html
+
+   <p align="center">
+     <img src="docs/source/img/banner.png" alt="MAEnvs4VRP Logo" width="650">
+   </p>
 
 Multi Agent Environments for Vehicle Routing Problems
 
